@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #020617;
+  --panel: #0f172a;
+  --panel-2: #111827;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --line: #1e293b;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at 20% -20%, rgba(30, 41, 59, 0.85), transparent 35%),
+    radial-gradient(circle at 85% 10%, rgba(15, 23, 42, 0.92), transparent 30%),
+    var(--bg);
+  color: var(--text);
+  font-family: "PingFang SC", "Noto Sans SC", "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.panel {
+  @apply rounded-lg border border-slate-800 bg-slate-900/75 shadow-glow;
+}

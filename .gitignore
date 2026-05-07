@@ -1,0 +1,8 @@
+.next
+node_modules
+data/*.json
+public/uploads/*
+public/outputs/*
+!public/uploads/.gitkeep
+!public/outputs/.gitkeep
+*.log

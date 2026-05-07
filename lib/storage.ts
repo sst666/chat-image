@@ -1,0 +1,164 @@
+import { promises as fs } from "fs";
+import path from "path";
+import { defaultEntries, defaultSettings } from "./defaults";
+import { AppLog, AppSettings, GeneratedImage, GenerationJob, PromptEntry, PromptTemplate } from "./types";
+
+const root = process.cwd();
+const dataDir = path.join(root, "data");
+
+const files = {
+  entries: path.join(dataDir, "entries.json"),
+  templates: path.join(dataDir, "templates.json"),
+  settings: path.join(dataDir, "settings.json"),
+  jobs: path.join(dataDir, "jobs.json"),
+  logs: path.join(dataDir, "logs.json"),
+};
+
+async function ensureDataDir() {
+  await fs.mkdir(dataDir, { recursive: true });
+  await fs.mkdir(path.join(root, "public", "uploads"), { recursive: true });
+  await fs.mkdir(path.join(root, "public", "outputs"), { recursive: true });
+}
+
+async function readJson<T>(file: string, fallback: T): Promise<T> {
+  await ensureDataDir();
+  try {
+    const raw = await fs.readFile(file, "utf8");
+    return JSON.parse(raw) as T;
+  } catch {
+    await writeJson(file, fallback);
+    return fallback;
+  }
+}
+
+async function writeJson<T>(file: string, data: T) {
+  await ensureDataDir();
+  await fs.writeFile(file, JSON.stringify(data, null, 2), "utf8");
+}
+
+export async function getEntries() {
+  return readJson<PromptEntry[]>(files.entries, defaultEntries);
+}
+
+export async function saveEntries(entries: PromptEntry[]) {
+  await writeJson(files.entries, entries);
+  return entries;
+}
+
+export async function getTemplates() {
+  return readJson<PromptTemplate[]>(files.templates, []);
+}
+
+export async function saveTemplates(templates: PromptTemplate[]) {
+  await writeJson(files.templates, templates);
+  return templates;
+}
+
+export async function getSettings() {
+  return readJson<AppSettings>(files.settings, defaultSettings);
+}
+
+export async function saveSettings(settings: AppSettings) {
+  await writeJson(files.settings, settings);
+  return settings;
+}
+
+export async function getJobs() {
+  return readJson<GenerationJob[]>(files.jobs, []);
+}
+
+export async function saveJobs(jobs: GenerationJob[]) {
+  await writeJson(files.jobs, jobs);
+  return jobs;
+}
+
+export async function updateJob(job: GenerationJob) {
+  const jobs = await getJobs();
+  const mergeImages = (oldImages: GeneratedImage[], newImages: GeneratedImage[]) => {
+    const map = new Map<string, GeneratedImage>();
+    for (const img of oldImages) map.set(img.id, img);
+    const rank: Record<string, number> = {
+      queued: 0,
+      paused: 1,
+      running: 2,
+      failed: 3,
+      cancelled: 3,
+      completed: 4,
+    };
+    for (const incoming of newImages) {
+      const existed = map.get(incoming.id);
+      if (!existed) {
+        map.set(incoming.id, incoming);
+        continue;
+      }
+      const useIncoming = rank[incoming.status] >= rank[existed.status];
+      const merged: GeneratedImage = {
+        ...existed,
+        ...(useIncoming ? incoming : {}),
+        progress: Math.max(existed.progress ?? 0, incoming.progress ?? 0),
+        outputPath: incoming.outputPath || existed.outputPath,
+        outputUrl: incoming.outputUrl || existed.outputUrl,
+        error: incoming.error || existed.error,
+        startedAt: existed.startedAt || incoming.startedAt,
+        completedAt: incoming.completedAt || existed.completedAt,
+      };
+      map.set(incoming.id, merged);
+    }
+    return Array.from(map.values());
+  };
+
+  const mergeTasks = (oldTasks: GenerationJob["tasks"], newTasks: GenerationJob["tasks"]) => {
+    const map = new Map<string, GenerationJob["tasks"][number]>();
+    for (const task of oldTasks) map.set(task.id, task);
+    for (const task of newTasks) map.set(task.id, task);
+    return Array.from(map.values());
+  };
+
+  const next = jobs.some((item) => item.id === job.id)
+    ? jobs.map((item) => {
+        if (item.id !== job.id) return item;
+        return {
+          ...item,
+          ...job,
+          tasks: mergeTasks(item.tasks, job.tasks),
+          images: mergeImages(item.images, job.images),
+        };
+      })
+    : [job, ...jobs];
+  await saveJobs(next);
+  return job;
+}
+
+export async function replaceJob(job: GenerationJob) {
+  const jobs = await getJobs();
+  const next = jobs.some((item) => item.id === job.id)
+    ? jobs.map((item) => (item.id === job.id ? job : item))
+    : [job, ...jobs];
+  await saveJobs(next);
+  return job;
+}
+
+export async function getJob(id: string) {
+  const jobs = await getJobs();
+  return jobs.find((job) => job.id === id);
+}
+
+export function toImageUrl(outputPath: string) {
+  const relative = outputPath.split(`${path.sep}public${path.sep}outputs${path.sep}`)[1] ?? path.basename(outputPath);
+  return `/api/images/${relative.split(path.sep).map(encodeURIComponent).join("/")}`;
+}
+
+export async function getLogs() {
+  return readJson<AppLog[]>(files.logs, []);
+}
+
+export async function appendLog(log: Omit<AppLog, "id" | "createdAt">) {
+  const logs = await getLogs();
+  const entry: AppLog = {
+    id: Math.random().toString(36).slice(2),
+    createdAt: new Date().toISOString(),
+    ...log,
+  };
+  await writeJson(files.logs, [entry, ...logs].slice(0, 500));
+  return entry;
+}

@@ -1,0 +1,116 @@
+import { AppSettings, PromptEntry } from "./types";
+
+const now = new Date().toISOString();
+
+export const defaultSettings: AppSettings = {
+  baseUrl: "https://api.bywlai.cn",
+  apiKey: "",
+  promptModel: "gpt-5.4",
+  imageModel: "gpt-image-2-vip",
+  concurrency: 1,
+  retries: 2,
+};
+
+export const defaultEntries: PromptEntry[] = [
+  {
+    id: "main-white-search",
+    type: "main",
+    title: "白底主搜图",
+    size: "800x800",
+    defaultPrompt: "生成淘宝主搜白底商品图，主体居中，完整展示商品轮廓，光线干净，保留商品颜色、版型、材质和纹理，画面高级真实。",
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
+    id: "main-selling-point",
+    type: "main",
+    title: "卖点营销图",
+    size: "800x800",
+    defaultPrompt: "生成电商卖点营销主图，突出核心功能与购买理由，构图清晰，有视觉层级，可加入简洁中文卖点文字区域但不要遮挡商品。",
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
+    id: "main-lifestyle",
+    type: "main",
+    title: "生活场景图",
+    size: "800x800",
+    defaultPrompt: "生成生活化使用场景主图，把商品自然放入真实高质感环境中，氛围符合淘宝消费者审美，商品仍是视觉中心。",
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
+    id: "main-detail-closeup",
+    type: "main",
+    title: "细节特写图",
+    size: "800x800",
+    defaultPrompt: "生成商品细节特写图，突出材质、纹理、做工、功能细节，镜头干净锐利，保留真实商品特征。",
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
+    id: "main-color-collection",
+    type: "main",
+    title: "多色合集图",
+    size: "800x800",
+    defaultPrompt: "生成多色合集主图，展示商品多种颜色或款式排列，整体统一干净，保留每个款式的形态与材质一致性。",
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
+    id: "detail-hero",
+    type: "detail",
+    title: "首屏头图",
+    size: "800x1200",
+    defaultPrompt: "生成详情页首屏头图，竖版构图，商品视觉冲击强，包含品牌感场景和清晰卖点区域，适合淘宝详情页开头。",
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
+    id: "detail-selling-diagram",
+    type: "detail",
+    title: "卖点图解",
+    size: "800x1200",
+    defaultPrompt: "生成详情页卖点图解，围绕商品核心优势设计分区说明，视觉清晰，图文空间平衡，突出用户利益点。",
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
+    id: "detail-comparison",
+    type: "detail",
+    title: "对比实验图",
+    size: "800x1200",
+    defaultPrompt: "生成对比实验详情图，用真实可信的对比画面突出商品效果或品质差异，布局适合竖版详情页。",
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
+    id: "detail-scenes",
+    type: "detail",
+    title: "多场景展示",
+    size: "800x1200",
+    defaultPrompt: "生成多场景展示详情图，分段呈现商品在不同使用场景中的效果，风格统一，消费者一眼能理解适用场景。",
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
+    id: "detail-specs",
+    type: "detail",
+    title: "规格参数图",
+    size: "800x1200",
+    defaultPrompt: "生成规格参数详情图，保留商品真实外观，预留清晰参数表区域，信息层级工整，适合淘宝详情页。",
+    createdAt: now,
+    updatedAt: now,
+  },
+];
+
+export const requirementLabels = [
+  "模特换人",
+  "换姿势",
+  "换角度",
+  "换背景",
+  "生成白底图",
+  "保留颜色",
+  "保留版型",
+  "保留纹理",
+];

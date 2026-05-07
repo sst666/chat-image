@@ -1,0 +1,94 @@
+import { AppSettings, ProductInput, PromptTask, UploadedImage } from "./types";
+
+function fidelityInstruction(fidelity: ProductInput["fidelity"]) {
+  if (fidelity === "high") return "商品保真度最高，必须严格保留商品颜色、版型、轮廓、材质和纹理，不改动核心设计。";
+  if (fidelity === "medium") return "商品保真度中等，允许优化场景和光影，但商品核心形态和卖点必须保持一致。";
+  return "商品保真度较低，允许更强创意演绎，但仍需让消费者识别为同一商品。";
+}
+
+export async function generatePrompts(settings: AppSettings, product: ProductInput, tasks: PromptTask[]) {
+  if (!settings.apiKey) {
+    return tasks.map((task) => ({
+      ...task,
+      prompt: `${task.prompt}\n\n商品：${product.title || "未命名商品"}。需求：${product.customRequirement || "无"}。处理要求：${product.requirements.join("、") || "无"}。${fidelityInstruction(product.fidelity)}`,
+    }));
+  }
+
+  const response = await fetch(`${settings.baseUrl.replace(/\/$/, "")}/v1/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${settings.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: settings.promptModel,
+      messages: [
+        {
+          role: "system",
+          content: "你是资深淘宝电商视觉提示词策划。只输出 JSON 数组，每项包含 id 和 prompt。提示词必须具体、可用于图像生成、中文表达。",
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            productTitle: product.title,
+            customRequirement: product.customRequirement,
+            requirements: product.requirements,
+            fidelity: fidelityInstruction(product.fidelity),
+            uploadedImageTypes: product.uploads.map((item) => item.kind),
+            tasks: tasks.map(({ id, title, type, size, prompt }) => ({ id, title, type, size, themePrompt: prompt })),
+            consistencyRule: product.requirements.includes("模特换人")
+              ? "第一次生成可进行模特换人，用户确认后后续提示词不再写模特换人，以确认后的图作为参考保持人物一致。"
+              : "不要主动更换模特身份，保持参考图人物和商品一致性。",
+          }),
+        },
+      ],
+      temperature: 0.7,
+    }),
+  });
+
+  if (!response.ok) throw new Error(`提示词生成失败：${response.status} ${await response.text()}`);
+  const payload = await response.json();
+  const text = payload.choices?.[0]?.message?.content ?? "[]";
+  const parsed = JSON.parse(text.replace(/^```json|```$/g, "").trim()) as Array<{ id: string; prompt: string }>;
+  return tasks.map((task) => ({ ...task, prompt: parsed.find((item) => item.id === task.id)?.prompt || task.prompt }));
+}
+
+function pickReference(uploaded: UploadedImage[], task: PromptTask) {
+  if (task.referenceKind) return uploaded.find((image) => image.kind === task.referenceKind) ?? uploaded[0];
+  if (task.title.includes("细节")) return uploaded.find((image) => image.kind === "detail") ?? uploaded[0];
+  if (task.title.includes("生活") || task.title.includes("场景")) return uploaded.find((image) => image.kind === "scene") ?? uploaded[0];
+  if (task.prompt.includes("模特")) return uploaded.find((image) => image.kind === "model") ?? uploaded[0];
+  return uploaded.find((image) => image.kind === "product") ?? uploaded[0];
+}
+
+export async function generateImage(settings: AppSettings, task: PromptTask, product: ProductInput) {
+  const reference = pickReference(product.uploads, task);
+  const normalizedSize = task.size === "800xauto" ? "800x1200" : task.size;
+  const adaptiveHint = task.size === "800xauto" ? "\n构图要求：宽度800，高度自适应，优先保证主体完整和信息清晰。" : "";
+  const body: Record<string, unknown> = {
+    model: settings.imageModel,
+    prompt: `${task.prompt}${adaptiveHint}\n\n商品标题：${product.title}\n自定义需求：${product.customRequirement || "无"}\n商品保真：${fidelityInstruction(product.fidelity)}`,
+    size: normalizedSize,
+    n: 1,
+  };
+
+  if (reference) {
+    body.image = reference.url.startsWith("http") ? reference.url : `${reference.url}`;
+  }
+
+  const response = await fetch(`${settings.baseUrl.replace(/\/$/, "")}/v1/images/generations`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${settings.apiKey}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) throw new Error(`图片生成失败：${response.status} ${await response.text()}`);
+  const payload = await response.json();
+  const item = payload.data?.[0];
+  if (item?.url) return { url: item.url as string };
+  if (item?.b64_json) return { b64: item.b64_json as string };
+  throw new Error("图片生成接口未返回 url 或 b64_json");
+}
