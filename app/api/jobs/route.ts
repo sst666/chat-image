@@ -110,6 +110,13 @@ export async function PATCH(req: Request) {
       void processJob(job.id);
     }
   }
+  if (body.action === "refresh-job") {
+    const hasQueued = job.images.some((item) => item.status === "queued");
+    if (hasQueued) {
+      job.status = "running";
+      void processJob(job.id);
+    }
+  }
   job.updatedAt = new Date().toISOString();
   if (shouldReplace) await replaceJob(job);
   else await updateJob(job);

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { buildTasks, readWorkbenchState, WorkbenchTask, writeWorkbenchState } from "@/lib/workbench-store";
 import { PromptEntry } from "@/lib/types";
+import { createId } from "@/lib/id";
 
 export default function HomePage() {
   const router = useRouter();
@@ -21,7 +22,7 @@ export default function HomePage() {
     if (!title.trim() || entries.length === 0) return;
     const state = readWorkbenchState();
     const task: WorkbenchTask = {
-      id: crypto.randomUUID(),
+      id: createId(),
       name: title.trim(),
       title: title.trim(),
       customRequirement: "",
@@ -30,7 +31,7 @@ export default function HomePage() {
       uploads: [],
       tasks: buildTasks(entries),
       jobId: "",
-      dualThread: false,
+      dualThread: true,
     };
     const next = { workbenches: [...state.workbenches, task], activeWorkbenchId: task.id };
     writeWorkbenchState(next);

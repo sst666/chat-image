@@ -1,6 +1,14 @@
 export type EntryType = "main" | "detail";
 export type Fidelity = "high" | "medium" | "low";
-export type UploadKind = "product" | "model" | "detail" | "scene" | "other";
+export type UploadKind =
+  | "front"
+  | "back"
+  | "white-bg"
+  | "model"
+  | "side"
+  | "lifestyle"
+  | "gift"
+  | "other";
 export type JobStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 export type ImageStatus = "queued" | "paused" | "running" | "completed" | "failed" | "cancelled";
 
@@ -21,6 +29,8 @@ export interface PromptTask {
   title: string;
   size: string;
   prompt: string;
+  enabled?: boolean;
+  referenceImageId?: string;
   referenceKind?: UploadKind;
 }
 

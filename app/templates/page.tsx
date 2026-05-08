@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { buildTasks, readWorkbenchState, WorkbenchTask, writeWorkbenchState } from "@/lib/workbench-store";
+import { createId } from "@/lib/id";
 
 export default function TemplatesPage() {
   const router = useRouter();
@@ -24,16 +25,16 @@ export default function TemplatesPage() {
     if (!taskTitle) return;
     const state = readWorkbenchState();
     const task: WorkbenchTask = {
-      id: crypto.randomUUID(),
+      id: createId(),
       name: taskTitle,
       title: taskTitle,
       customRequirement: "",
       requirements: [],
       fidelity: "high",
       uploads: [],
-      tasks: item.tasks?.length ? item.tasks.map((t: any) => ({ ...t, id: crypto.randomUUID() })) : buildTasks(entries),
+      tasks: item.tasks?.length ? item.tasks.map((t: any) => ({ ...t, id: createId() })) : buildTasks(entries),
       jobId: "",
-      dualThread: false,
+      dualThread: true,
     };
     writeWorkbenchState({
       workbenches: [...state.workbenches, task],
@@ -90,7 +91,7 @@ export default function TemplatesPage() {
             className="mt-2 rounded bg-cyan-700 px-2 py-1 text-xs"
             onClick={() => applyTemplate({
               tasks: entries.map((e) => ({
-                id: crypto.randomUUID(),
+                id: createId(),
                 entryId: e.id,
                 type: e.type,
                 title: e.title,

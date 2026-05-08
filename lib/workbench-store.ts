@@ -1,4 +1,5 @@
 import { PromptEntry, PromptTask, UploadedImage } from "./types";
+import { createId } from "./id";
 
 export type Fidelity = "high" | "medium" | "low";
 
@@ -24,12 +25,13 @@ export const storageKey = "tb-ai-workbench-v3";
 
 export function buildTasks(entries: PromptEntry[]): PromptTask[] {
   return entries.map((item) => ({
-    id: crypto.randomUUID(),
+    id: createId(),
     entryId: item.id,
     type: item.type,
     title: item.title,
     size: item.size,
     prompt: item.defaultPrompt,
+    enabled: true,
   }));
 }
 
@@ -40,7 +42,13 @@ export function readWorkbenchState(): WorkbenchState {
   try {
     const parsed = JSON.parse(raw) as WorkbenchState;
     return {
-      workbenches: parsed.workbenches ?? [],
+      workbenches: (parsed.workbenches ?? []).map((workbench) => ({
+        ...workbench,
+        tasks: (workbench.tasks ?? []).map((task) => ({
+          ...task,
+          enabled: task.enabled ?? true,
+        })),
+      })),
       activeWorkbenchId: parsed.activeWorkbenchId ?? "",
     };
   } catch {

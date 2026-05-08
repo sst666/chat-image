@@ -1,4 +1,6 @@
 import { AppSettings, ProductInput, PromptTask, UploadedImage } from "./types";
+import { promises as fs } from "fs";
+import path from "path";
 
 function fidelityInstruction(fidelity: ProductInput["fidelity"]) {
   if (fidelity === "high") return "商品保真度最高，必须严格保留商品颜色、版型、轮廓、材质和纹理，不改动核心设计。";
@@ -54,11 +56,15 @@ export async function generatePrompts(settings: AppSettings, product: ProductInp
 }
 
 function pickReference(uploaded: UploadedImage[], task: PromptTask) {
+  if (task.referenceImageId) {
+    const selected = uploaded.find((image) => image.id === task.referenceImageId);
+    if (selected) return selected;
+  }
   if (task.referenceKind) return uploaded.find((image) => image.kind === task.referenceKind) ?? uploaded[0];
-  if (task.title.includes("细节")) return uploaded.find((image) => image.kind === "detail") ?? uploaded[0];
-  if (task.title.includes("生活") || task.title.includes("场景")) return uploaded.find((image) => image.kind === "scene") ?? uploaded[0];
+  if (task.title.includes("细节")) return uploaded.find((image) => image.kind === "side") ?? uploaded[0];
+  if (task.title.includes("生活") || task.title.includes("场景")) return uploaded.find((image) => image.kind === "lifestyle") ?? uploaded[0];
   if (task.prompt.includes("模特")) return uploaded.find((image) => image.kind === "model") ?? uploaded[0];
-  return uploaded.find((image) => image.kind === "product") ?? uploaded[0];
+  return uploaded.find((image) => image.kind === "front") ?? uploaded[0];
 }
 
 export async function generateImage(settings: AppSettings, task: PromptTask, product: ProductInput) {
@@ -73,7 +79,13 @@ export async function generateImage(settings: AppSettings, task: PromptTask, pro
   };
 
   if (reference) {
-    body.image = reference.url.startsWith("http") ? reference.url : `${reference.url}`;
+    if (reference.url.startsWith("http")) {
+      body.image = reference.url;
+    } else {
+      const localPath = path.join(process.cwd(), "public", reference.url.replace(/^\//, ""));
+      const buf = await fs.readFile(localPath);
+      body.image = `data:${reference.mimeType || "image/png"};base64,${buf.toString("base64")}`;
+    }
   }
 
   const response = await fetch(`${settings.baseUrl.replace(/\/$/, "")}/v1/images/generations`, {

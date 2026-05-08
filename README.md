@@ -27,7 +27,7 @@ npm install
 npm run dev
 ```
 
-默认端口：`3003`
+默认端口：`306`（监听 `0.0.0.0`，支持局域网访问）
 
 Windows / macOS 一键启动：
 
@@ -48,4 +48,3 @@ public/outputs/     生成图片输出
 
 - 二开文档：`docs/SECONDARY_DEVELOPMENT.md`
 - 部署文档：`docs/DEPLOYMENT.md`
-
