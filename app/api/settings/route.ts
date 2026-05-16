@@ -11,6 +11,8 @@ export async function POST(req: Request) {
   const next = {
     ...defaultSettings,
     ...body,
+    baseUrl: defaultSettings.baseUrl,
+    promptModel: defaultSettings.promptModel,
   };
   await saveSettings(next);
   return NextResponse.json(next);

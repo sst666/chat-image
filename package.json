@@ -3,20 +3,25 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 306 -H 0.0.0.0",
-    "build": "next build",
-    "start": "next start -p 306 -H 0.0.0.0",
+    "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
+    "dev": "npm run clean && node scripts/run-next.cjs dev",
+    "build": "npm run clean && next build",
+    "start": "node scripts/run-next.cjs start",
     "lint": "next lint"
   },
   "dependencies": {
     "@tailwindcss/forms": "^0.5.10",
     "adm-zip": "^0.5.16",
     "clsx": "^2.1.1",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.468.0",
+    "mammoth": "^1.11.0",
     "next": "14.2.23",
+    "pdfjs-dist": "^5.7.284",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "uuid": "^11.0.5",
+    "xlsx": "^0.18.5",
     "zod": "^3.24.1"
   },
   "devDependencies": {

@@ -7,8 +7,9 @@ export const defaultSettings: AppSettings = {
   apiKey: "",
   promptModel: "gpt-5.4",
   imageModel: "gpt-image-2-vip",
+  backupImageModels: ["gpt-image-2", "gemini-3-pro-image-preview", "gemini-3.1-flash-image"],
   concurrency: 1,
-  retries: 2,
+  retries: 1,
 };
 
 export const defaultEntries: PromptEntry[] = [

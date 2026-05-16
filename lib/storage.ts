@@ -1,14 +1,13 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { defaultEntries, defaultSettings } from "./defaults";
-import { AppLog, AppSettings, GeneratedImage, GenerationJob, PromptEntry, PromptTemplate } from "./types";
+import { AppLog, AppSettings, GeneratedImage, GenerationJob, PromptEntry } from "./types";
 
 const root = process.cwd();
 const dataDir = path.join(root, "data");
 
 const files = {
   entries: path.join(dataDir, "entries.json"),
-  templates: path.join(dataDir, "templates.json"),
   settings: path.join(dataDir, "settings.json"),
   jobs: path.join(dataDir, "jobs.json"),
   logs: path.join(dataDir, "logs.json"),
@@ -36,6 +35,29 @@ async function writeJson<T>(file: string, data: T) {
   await fs.writeFile(file, JSON.stringify(data, null, 2), "utf8");
 }
 
+function normalizeSettings(settings: Partial<AppSettings> | null | undefined): AppSettings {
+  const primaryImageModel = String(settings?.imageModel || defaultSettings.imageModel).trim() || defaultSettings.imageModel;
+  const backupImageModels = Array.isArray(settings?.backupImageModels)
+    ? settings?.backupImageModels
+    : defaultSettings.backupImageModels;
+  const normalizedBackups = backupImageModels
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .filter((item, index, list) => list.indexOf(item) === index && item !== primaryImageModel);
+
+  return {
+    ...defaultSettings,
+    ...settings,
+    baseUrl: String(settings?.baseUrl || defaultSettings.baseUrl),
+    apiKey: String(settings?.apiKey || ""),
+    promptModel: String(settings?.promptModel || defaultSettings.promptModel),
+    imageModel: primaryImageModel,
+    backupImageModels: normalizedBackups,
+    concurrency: Number(settings?.concurrency || defaultSettings.concurrency),
+    retries: Number(settings?.retries || defaultSettings.retries),
+  };
+}
+
 export async function getEntries() {
   return readJson<PromptEntry[]>(files.entries, defaultEntries);
 }
@@ -45,22 +67,15 @@ export async function saveEntries(entries: PromptEntry[]) {
   return entries;
 }
 
-export async function getTemplates() {
-  return readJson<PromptTemplate[]>(files.templates, []);
-}
-
-export async function saveTemplates(templates: PromptTemplate[]) {
-  await writeJson(files.templates, templates);
-  return templates;
-}
-
 export async function getSettings() {
-  return readJson<AppSettings>(files.settings, defaultSettings);
+  const settings = await readJson<Partial<AppSettings>>(files.settings, defaultSettings);
+  return normalizeSettings(settings);
 }
 
 export async function saveSettings(settings: AppSettings) {
-  await writeJson(files.settings, settings);
-  return settings;
+  const normalized = normalizeSettings(settings);
+  await writeJson(files.settings, normalized);
+  return normalized;
 }
 
 export async function getJobs() {

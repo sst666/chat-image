@@ -52,19 +52,12 @@ export interface ProductInput {
   uploads: UploadedImage[];
 }
 
-export interface PromptTemplate {
-  id: string;
-  name: string;
-  tasks: PromptTask[];
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface AppSettings {
   baseUrl: string;
   apiKey: string;
   promptModel: string;
   imageModel: string;
+  backupImageModels: string[];
   concurrency: number;
   retries: number;
 }

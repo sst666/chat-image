@@ -67,40 +67,115 @@ function pickReference(uploaded: UploadedImage[], task: PromptTask) {
   return uploaded.find((image) => image.kind === "front") ?? uploaded[0];
 }
 
+async function toDataUrl(reference?: UploadedImage | null) {
+  if (!reference) return null;
+  if (reference.url.startsWith("http")) return reference.url;
+  const localPath = path.join(process.cwd(), "public", reference.url.replace(/^\//, ""));
+  const buf = await fs.readFile(localPath);
+  return `data:${reference.mimeType || "image/png"};base64,${buf.toString("base64")}`;
+}
+
+async function resolveReferenceImages(task: PromptTask, uploaded: UploadedImage[]) {
+  if (!uploaded.length) return [] as string[];
+  const selected = task.entryId === "custom-image"
+    ? uploaded
+    : [pickReference(uploaded, task)].filter(Boolean) as UploadedImage[];
+  const refs = await Promise.all(selected.map((item) => toDataUrl(item)));
+  return refs.filter(Boolean) as string[];
+}
+
+function dataUrlToBuffer(input: string) {
+  const raw = String(input || "").trim();
+  const matched = raw.match(/^data:([^;,]+);base64,(.+)$/i);
+  if (matched) {
+    return {
+      mimeType: matched[1] || "image/png",
+      bytes: Buffer.from(matched[2] || "", "base64"),
+    };
+  }
+  return {
+    mimeType: "image/png",
+    bytes: Buffer.from(raw, "base64"),
+  };
+}
+
+function extByMime(mimeType: string) {
+  const normalized = String(mimeType || "").toLowerCase();
+  if (normalized.includes("jpeg") || normalized.includes("jpg")) return "jpg";
+  if (normalized.includes("webp")) return "webp";
+  if (normalized.includes("gif")) return "gif";
+  return "png";
+}
+
+function buildImagePrompt(task: PromptTask, product: ProductInput, adaptiveHint: string) {
+  return `${task.prompt}${adaptiveHint}\n\n商品标题：${product.title}\n自定义需求：${product.customRequirement || "无"}\n商品保真：${fidelityInstruction(product.fidelity)}\n参考图要求：严格遵循参考图中的商品款式、颜色、纹理、logo与关键结构，不可偏离原商品特征。`;
+}
+
+async function requestImageGeneration(endpoint: string, apiKey: string, model: string, normalizedSize: string, prompt: string, references: string[], useMultipart: boolean) {
+  return useMultipart
+    ? await (async () => {
+        const form = new FormData();
+        form.append("model", model);
+        form.append("prompt", prompt);
+        form.append("size", normalizedSize);
+        form.append("n", "1");
+        form.append("response_format", "b64_json");
+        for (let index = 0; index < references.length; index += 1) {
+          const payload = dataUrlToBuffer(references[index]);
+          if (!payload.bytes.length) continue;
+          const blob = new Blob([payload.bytes], { type: payload.mimeType });
+          form.append("image[]", blob, `reference-${index + 1}.${extByMime(payload.mimeType)}`);
+        }
+        return fetch(endpoint, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}` },
+          body: form,
+        });
+      })()
+    : await (async () => {
+        const body: Record<string, unknown> = {
+          model,
+          prompt,
+          size: normalizedSize,
+          n: 1,
+        };
+        if (references[0]) body.image = references[0];
+        return fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify(body),
+        });
+      })();
+}
+
 export async function generateImage(settings: AppSettings, task: PromptTask, product: ProductInput) {
-  const reference = pickReference(product.uploads, task);
+  const references = await resolveReferenceImages(task, product.uploads);
   const normalizedSize = task.size === "800xauto" ? "800x1200" : task.size;
   const adaptiveHint = task.size === "800xauto" ? "\n构图要求：宽度800，高度自适应，优先保证主体完整和信息清晰。" : "";
-  const body: Record<string, unknown> = {
-    model: settings.imageModel,
-    prompt: `${task.prompt}${adaptiveHint}\n\n商品标题：${product.title}\n自定义需求：${product.customRequirement || "无"}\n商品保真：${fidelityInstruction(product.fidelity)}`,
-    size: normalizedSize,
-    n: 1,
-  };
+  const prompt = buildImagePrompt(task, product, adaptiveHint);
+  const endpoint = `${settings.baseUrl.replace(/\/$/, "")}/v1/images/generations`;
+  const useMultipart = references.length > 1 || task.entryId === "custom-image";
+  const modelQueue = [settings.imageModel, ...(settings.backupImageModels || [])]
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .filter((item, index, list) => list.indexOf(item) === index);
+  const failures: string[] = [];
 
-  if (reference) {
-    if (reference.url.startsWith("http")) {
-      body.image = reference.url;
-    } else {
-      const localPath = path.join(process.cwd(), "public", reference.url.replace(/^\//, ""));
-      const buf = await fs.readFile(localPath);
-      body.image = `data:${reference.mimeType || "image/png"};base64,${buf.toString("base64")}`;
+  for (const model of modelQueue) {
+    const response = await requestImageGeneration(endpoint, settings.apiKey, model, normalizedSize, prompt, references, useMultipart);
+    if (!response.ok) {
+      failures.push(`${model}: ${response.status} ${await response.text()}`);
+      continue;
     }
+    const payload = await response.json();
+    const item = payload.data?.[0];
+    if (item?.url) return { url: item.url as string, model };
+    if (item?.b64_json) return { b64: item.b64_json as string, model };
+    failures.push(`${model}: 图片生成接口未返回 url 或 b64_json`);
   }
 
-  const response = await fetch(`${settings.baseUrl.replace(/\/$/, "")}/v1/images/generations`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${settings.apiKey}`,
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) throw new Error(`图片生成失败：${response.status} ${await response.text()}`);
-  const payload = await response.json();
-  const item = payload.data?.[0];
-  if (item?.url) return { url: item.url as string };
-  if (item?.b64_json) return { b64: item.b64_json as string };
-  throw new Error("图片生成接口未返回 url 或 b64_json");
+  throw new Error(`图片生成失败：${failures.join("；")}`);
 }

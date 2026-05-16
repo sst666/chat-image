@@ -67,7 +67,7 @@ export default function WorkspacePage() {
       const state = readWorkbenchState();
       const entryData = (await fetch("/api/entries").then((r) => r.json())) as PromptEntry[];
       setEntries(entryData);
-      if (!state.workbenches.length) return router.push("/");
+      if (!state.workbenches.length) return router.push("/custom-image");
       const fixed = state.workbenches.map((w) => ({
         ...w,
         requirements: w.requirements?.length ? w.requirements : requirementLabels,
@@ -264,7 +264,7 @@ export default function WorkspacePage() {
     if (!target) return;
     if (!confirm(`确定删除任务「${target.name}」吗？`)) return;
     const rest = workbenches.filter((w) => w.id !== id);
-    if (!rest.length) return (writeWorkbenchState({ workbenches: [], activeWorkbenchId: "" }), router.push("/"));
+    if (!rest.length) return (writeWorkbenchState({ workbenches: [], activeWorkbenchId: "" }), router.push("/custom-image"));
     persist(rest);
     router.push(`/workspace/${rest[0].id}`);
   };

@@ -1,50 +1,102 @@
-# taobao-image-Beta version
+# 加菲猫chat image
 
-基于 Next.js 14 + TypeScript 的淘宝电商商品图 AI 生成平台。  
-支持上传商品图、生成提示词、逐图生图、结果预览、模板管理、历史记录与设置管理。
+一个基于 Next.js 14 + TypeScript 的 AI 图片工作台，当前包含两条核心能力：
 
-## 主要功能
+- 聊天：支持多轮对话、模型切换、消息编辑、重新发送、重新生成、上下文轮数限制
+- 自定义生图：支持产品图/参考图上传、提示词整理、固定比例与自定义像素尺寸、失败后自动切换备用模型重试
 
-- 生图任务管理：支持多任务切换（左侧任务栏）
-- 提示词生成：基于商品信息与词条模板自动生成
-- 图片生成：支持单图生成与一键生成全部
-- 任务控制：暂停、继续、取消（未发请求任务可取消）
-- 模板体系：系统默认模板 + 自定义全套模板保存/复用
-- 历史记录：任务下载与删除
-- 设置页：API 配置、连接测试、生成/报错日志查看
+## 当前版本亮点
+
+- 聊天页支持浅色/深色主题同步
+- 聊天设置支持自定义输出回复上限与最近保留轮数
+- 生图设置支持主模型 + 备用模型队列
+- 图片生成失败会按备用模型顺序自动重试
+- 数据默认使用本地 JSON 持久化，便于私有部署和二次开发
+- 已提供 Docker、Docker Compose、Nginx、systemd、PM2 部署方案
 
 ## 技术栈
 
-- Next.js 14 (App Router)
+- Next.js 14（App Router）
+- React 18
 - TypeScript
 - Tailwind CSS
-- JSON 文件存储（`data/*.json`）
+- 本地 JSON 持久化（`data/*.json`）
 
-## 快速启动
+## 本地开发
 
 ```bash
 npm install
 npm run dev
 ```
 
-默认端口：`306`（监听 `0.0.0.0`，支持局域网访问）
+默认监听：
 
-Windows / macOS 一键启动：
+- 地址：`0.0.0.0`
+- 端口：`306`
 
-- Windows: `start.bat`
-- macOS/Linux: `./start.sh`
+也可以通过环境变量覆盖：
 
-## 项目结构
-
-```text
-app/                页面与 API 路由
-lib/                核心业务与存储逻辑
-data/               JSON 数据文件（运行时）
-public/uploads/     上传图片
-public/outputs/     生成图片输出
+```bash
+PORT=3080 HOST=0.0.0.0 npm run dev
 ```
 
-## 相关文档
+## 生产启动
 
-- 二开文档：`docs/SECONDARY_DEVELOPMENT.md`
-- 部署文档：`docs/DEPLOYMENT.md`
+```bash
+npm install
+npm run build
+npm run start
+```
+
+## 健康检查
+
+```bash
+curl http://127.0.0.1:306/api/health
+```
+
+返回示例：
+
+```json
+{
+  "ok": true,
+  "service": "chat-image",
+  "timestamp": "2026-05-16T00:00:00.000Z"
+}
+```
+
+## 目录结构
+
+```text
+app/
+  api/                  后端接口
+  cherrychat/           聊天模块
+  custom-image/         自定义生图页面
+  components/           全局组件
+lib/                    AI 调用、默认配置、存储层
+data/                   JSON 数据
+public/uploads/         上传文件
+public/outputs/         生成结果
+deploy/                 Nginx / systemd 示例配置
+docs/                   部署与二开文档
+```
+
+## 常用路径
+
+- 首页聊天：`/`
+- 自定义生图：`/custom-image`
+- 历史记录：`/history`
+- 主设置：`/settings`
+- 健康检查：`/api/health`
+
+## 数据目录说明
+
+部署时请确保以下目录可写：
+
+- `data/`
+- `public/uploads/`
+- `public/outputs/`
+
+## 文档
+
+- 二次开发文档：[docs/SECONDARY_DEVELOPMENT.md](/Users/sst/Documents/New%20project%202/docs/SECONDARY_DEVELOPMENT.md)
+- 详细部署文档：[docs/DEPLOYMENT.md](/Users/sst/Documents/New%20project%202/docs/DEPLOYMENT.md)

@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  chat-image:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chat-image
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-306}:306"
+    environment:
+      NODE_ENV: production
+      PORT: 306
+      HOST: 0.0.0.0
+    volumes:
+      - ./data:/app/data
+      - ./public/uploads:/app/public/uploads
+      - ./public/outputs:/app/public/outputs
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:306/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
