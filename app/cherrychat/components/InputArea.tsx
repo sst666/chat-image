@@ -146,7 +146,7 @@ export default function InputArea() {
   );
 
   return (
-    <div className="shrink-0 px-3 pb-4 pt-2 sm:px-4">
+    <div className="shrink-0 px-2 pb-[calc(0.7rem+env(safe-area-inset-bottom))] pt-2 sm:px-4 sm:pb-4">
       <div
         className={`rounded-2xl border bg-[color:var(--panel-strong)] transition-all ${
           isDragging
@@ -197,7 +197,7 @@ export default function InputArea() {
           </div>
         ) : null}
 
-        <div className="flex items-end gap-2 px-3 py-2">
+        <div className="px-3 pb-1.5 pt-2.5">
           <textarea
             ref={textareaRef}
             value={text}
@@ -210,23 +210,9 @@ export default function InputArea() {
             onKeyDown={handleKeyDown}
             placeholder="输入消息...（Shift+Enter 换行）"
             rows={1}
-            className="flex-1 resize-none bg-transparent text-sm text-[color:var(--text)] outline-none placeholder:text-[color:var(--text-soft)]"
+            className="w-full resize-none bg-transparent text-sm text-[color:var(--text)] outline-none placeholder:text-[color:var(--text-soft)]"
             style={{ minHeight: 44, maxHeight: 200 }}
           />
-
-          <div className="mb-0.5 shrink-0">
-            <ModelSelector />
-          </div>
-
-          <button
-            title="发送"
-            onClick={() => void handleSend()}
-            disabled={state.isLoading || (!text.trim() && images.length === 0 && files.length === 0)}
-            className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white transition-all disabled:cursor-not-allowed disabled:opacity-40"
-            style={{ background: "linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 42%, #60a5fa))" }}
-          >
-            <Send size={15} />
-          </button>
         </div>
 
         {state.isLoading ? (
@@ -238,7 +224,7 @@ export default function InputArea() {
           </div>
         ) : null}
 
-        <div className="flex items-center justify-between px-3 pb-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3 pb-2.5">
           <div className="flex items-center gap-1">
             <input
               ref={imageInputRef}
@@ -295,6 +281,21 @@ export default function InputArea() {
               title="添加文档文件"
             >
               <Paperclip size={16} />
+            </button>
+          </div>
+
+          <div className="ml-auto flex items-center gap-2">
+            <div className="shrink-0">
+              <ModelSelector />
+            </div>
+            <button
+              title="发送"
+              onClick={() => void handleSend()}
+              disabled={state.isLoading || (!text.trim() && images.length === 0 && files.length === 0)}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white transition-all disabled:cursor-not-allowed disabled:opacity-40"
+              style={{ background: "linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 42%, #60a5fa))" }}
+            >
+              <Send size={15} />
             </button>
           </div>
         </div>

@@ -15,7 +15,7 @@ export default function MessageList() {
   if (!currentConversation) return null;
 
   return (
-    <div className="flex-1 space-y-1 overflow-y-auto px-4 py-4">
+    <div className="flex-1 space-y-1 overflow-y-auto px-2 py-3 sm:px-4 sm:py-4">
       {currentConversation.messages.map((msg) => (
         <MessageBubble key={msg.id} message={msg} />
       ))}

@@ -583,8 +583,8 @@ export default function CustomImagePage() {
   if (!active) return <section className="panel rounded-3xl p-6 text-sm app-muted">加载中...</section>;
 
   return (
-    <section className="grid gap-5 xl:grid-cols-[280px,minmax(0,1fr),420px]">
-      <aside className="app-card rounded-3xl p-4">
+    <section className="grid gap-4 xl:grid-cols-[280px,minmax(0,1fr),420px] xl:gap-5">
+      <aside className="app-card rounded-2xl p-4 sm:rounded-3xl">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <div className="text-base font-semibold">任务工作台</div>
@@ -645,14 +645,14 @@ export default function CustomImagePage() {
       </aside>
 
       <div className="space-y-5">
-        <section className="app-card rounded-3xl p-6">
+        <section className="app-card rounded-2xl p-4 sm:rounded-3xl sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
                 <Sparkles size={16} />
                 自定义生图
               </div>
-              {active.title ? <h1 className="text-3xl font-semibold tracking-tight">{active.title}</h1> : null}
+              {active.title ? <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{active.title}</h1> : null}
               <p className="app-muted mt-2 max-w-2xl text-sm">
                 用产品图和参考图快速拼出一套更细的生图流程。现在支持固定比例、自动高宽，以及手动输入像素尺寸。
               </p>
@@ -670,7 +670,7 @@ export default function CustomImagePage() {
           </div>
         </section>
 
-        <section className="app-card rounded-3xl p-6">
+        <section className="app-card rounded-2xl p-4 sm:rounded-3xl sm:p-6">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <div className="text-lg font-semibold">素材区</div>
@@ -683,7 +683,7 @@ export default function CustomImagePage() {
           </div>
         </section>
 
-        <section className="app-card rounded-3xl p-6">
+        <section className="app-card rounded-2xl p-4 sm:rounded-3xl sm:p-6">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <div className="text-lg font-semibold">生成参数</div>
@@ -753,7 +753,7 @@ export default function CustomImagePage() {
 
             <div className="grid gap-2 text-sm">
               <span className="app-muted">尺寸比例</span>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {aspectRatioOptions.map((option) => {
                   const selected = active.aspectRatio === option.value;
                   return (
@@ -819,7 +819,7 @@ export default function CustomImagePage() {
         </section>
       </div>
 
-      <aside className="app-card rounded-3xl p-5">
+      <aside className="app-card rounded-2xl p-4 sm:rounded-3xl sm:p-5">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <div className="text-lg font-semibold">结果预览</div>

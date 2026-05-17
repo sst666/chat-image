@@ -15,7 +15,7 @@ export default function HistoryPage() {
             <div className="mb-1 text-sm">{job.title}</div>
             <div className="mb-2 text-xs text-slate-400">{job.status} / {job.createdAt}</div>
             <div className="flex gap-2">
-              <a className="rounded bg-cyan-700 px-2 py-1 text-xs" href={`/api/download?jobId=${job.id}`}>打包下载</a>
+              <a className="rounded bg-cyan-700 px-2 py-1 text-xs" href={`/api/download?jobId=${job.id}`}>普通下载</a>
               <button className="rounded bg-slate-700 px-2 py-1 text-xs" onClick={async () => { await fetch(`/api/history?id=${job.id}`, { method: "DELETE" }); await load(); }}>删除</button>
             </div>
           </div>

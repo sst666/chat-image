@@ -99,7 +99,7 @@ export default function ChatArea() {
 
 function EmptyState() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 p-5 text-center sm:p-8">
       <div
         className="flex h-14 w-14 items-center justify-center rounded-2xl"
         style={{ background: "linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 40%, #60a5fa))" }}
@@ -112,7 +112,7 @@ function EmptyState() {
           开始一段新对话，上传图片或 PDF，和 AI 一起整理想法、资料和任务。
         </p>
       </div>
-      <div className="mt-2 grid w-full max-w-sm grid-cols-2 gap-2">
+      <div className="mt-2 grid w-full max-w-sm grid-cols-1 gap-2 sm:grid-cols-2">
         {["解释一个概念", "帮我写代码", "总结一份文档", "一起头脑风暴"].map((s) => (
           <div
             key={s}

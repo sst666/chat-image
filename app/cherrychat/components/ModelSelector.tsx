@@ -64,14 +64,14 @@ export default function ModelSelector() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 rounded-xl border border-[color:var(--line)] bg-[color:var(--panel-strong)] px-3 py-2 text-xs font-medium text-[color:var(--text-soft)] transition-colors hover:border-[color:var(--accent)] hover:text-[color:var(--text)]"
+        className="flex max-w-[42vw] items-center gap-1.5 rounded-xl border border-[color:var(--line)] bg-[color:var(--panel-strong)] px-3 py-2 text-xs font-medium text-[color:var(--text-soft)] transition-colors hover:border-[color:var(--accent)] hover:text-[color:var(--text)] sm:max-w-none"
       >
-        <span>{shortName(currentModel)}</span>
+        <span className="truncate">{shortName(currentModel)}</span>
         <ChevronDown size={12} className={open ? "rotate-180" : ""} style={{ transition: "transform 0.15s" }} />
       </button>
 
       {open ? (
-        <div className="absolute bottom-full left-0 right-0 z-40 mb-1 max-h-[60vh] w-full overflow-hidden rounded-2xl border border-[color:var(--line)] bg-[color:var(--panel-strong)] shadow-[var(--shadow)] sm:left-auto sm:w-72">
+        <div className="absolute bottom-full right-0 z-40 mb-1 max-h-[68vh] w-[min(90vw,22rem)] overflow-hidden rounded-2xl border border-[color:var(--line)] bg-[color:var(--panel-strong)] shadow-[var(--shadow)]">
           <div className="border-b border-[color:var(--line)] p-2">
             <div className="relative">
               <Search size={12} className="app-muted absolute left-2.5 top-1/2 -translate-y-1/2" />

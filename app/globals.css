@@ -9,6 +9,7 @@
   --panel-strong: rgba(255, 255, 255, 0.96);
   --panel-muted: rgba(244, 247, 251, 0.92);
   --text: #111827;
+  --text-soft: #344054;
   --muted: #667085;
   --line: rgba(15, 23, 42, 0.09);
   --input: rgba(255, 255, 255, 0.94);
@@ -27,6 +28,7 @@ html[data-theme="dark"] {
   --panel-strong: rgba(15, 23, 42, 0.92);
   --panel-muted: rgba(15, 23, 42, 0.58);
   --text: #e5eef8;
+  --text-soft: #cbd5e1;
   --muted: #94a3b8;
   --line: rgba(148, 163, 184, 0.14);
   --input: rgba(2, 6, 23, 0.55);
@@ -58,6 +60,7 @@ body {
 
 body {
   color: var(--text);
+  overflow-x: hidden;
 }
 
 a {
@@ -115,6 +118,24 @@ a {
   color: var(--muted);
   font-size: 0.9rem;
   transition: background-color 150ms ease, color 150ms ease;
+}
+
+@media (max-width: 768px) {
+  .app-nav {
+    width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .app-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .app-nav-link {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 0.48rem 0.85rem;
+    font-size: 0.82rem;
+  }
 }
 
 .app-nav-link:hover {

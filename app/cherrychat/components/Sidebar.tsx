@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { MessageSquare, Plus, Search, Trash2 } from "lucide-react";
+import { MessageSquare, Plus, Search, Trash2, X } from "lucide-react";
 import { useChatContext } from "../context/ChatContext";
 import type { Conversation } from "../types";
 
-export default function Sidebar() {
+export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { state, dispatch } = useChatContext();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
@@ -17,10 +17,12 @@ export default function Sidebar() {
 
   function handleNew() {
     dispatch({ type: "NEW_CONVERSATION" });
+    onNavigate?.();
   }
 
   function handleSelect(id: string) {
     dispatch({ type: "SELECT_CONVERSATION", payload: id });
+    onNavigate?.();
   }
 
   function handleDelete(e: React.MouseEvent, id: string) {
@@ -42,10 +44,7 @@ export default function Sidebar() {
   }
 
   return (
-    <aside
-      style={{ width: 280, minWidth: 280 }}
-      className="flex h-full flex-col border-r border-[color:var(--line)] bg-[color:var(--panel-muted)]"
-    >
+    <aside className="flex h-full w-[84vw] max-w-[320px] flex-col border-r border-[color:var(--line)] bg-[color:var(--panel-muted)] md:w-[280px] md:min-w-[280px]">
       <div className="flex items-center justify-between border-b border-[color:var(--line)] px-4 py-3">
         <div className="flex items-center gap-2">
           <div
@@ -59,6 +58,13 @@ export default function Sidebar() {
             <div className="app-muted text-[10px]">多模态聊天工作台</div>
           </div>
         </div>
+        <button
+          onClick={() => onNavigate?.()}
+          className="rounded-lg p-1.5 app-muted transition-colors hover:bg-[color:var(--accent-soft)] hover:text-[color:var(--text)] md:hidden"
+          aria-label="关闭侧栏"
+        >
+          <X size={16} />
+        </button>
       </div>
 
       <div className="px-3 pb-2 pt-3">
