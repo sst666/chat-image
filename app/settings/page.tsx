@@ -170,18 +170,30 @@ export default function SettingsPage() {
           <button
             className="app-button-primary px-4 py-3 text-sm"
             onClick={async () => {
-              const payload = {
-                ...data,
-                backupImageModels: backupImageModels.map((item: string) => String(item || "").trim()).filter(Boolean),
-              };
-              const res = await fetch("/api/settings", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-              });
-              const next = await res.json();
-              setData(next);
-              setMsg("保存成功");
+              try {
+                const payload = {
+                  ...data,
+                  backupImageModels: backupImageModels.map((item: string) => String(item || "").trim()).filter(Boolean),
+                };
+                const res = await fetch("/api/settings", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(payload),
+                });
+                const next = await res.json();
+                if (!res.ok) {
+                  setMsg(next?.message || `保存失败（${res.status}）`);
+                  return;
+                }
+                if (!next || typeof next !== "object") {
+                  setMsg("保存失败：返回数据异常");
+                  return;
+                }
+                setData(next);
+                setMsg("保存成功");
+              } catch (error) {
+                setMsg(error instanceof Error ? `保存失败：${error.message}` : "保存失败");
+              }
             }}
           >
             保存
@@ -189,9 +201,17 @@ export default function SettingsPage() {
           <button
             className="app-button-secondary px-4 py-3 text-sm"
             onClick={async () => {
-              const res = await fetch("/api/test-connection", { method: "POST" });
-              const t = await res.json();
-              setMsg(t.message || (t.ok ? "连接成功" : "连接失败"));
+              try {
+                const res = await fetch("/api/test-connection", { method: "POST" });
+                const t = await res.json();
+                if (!res.ok) {
+                  setMsg(t?.message || `连接失败（${res.status}）`);
+                  return;
+                }
+                setMsg(t.message || (t.ok ? "连接成功" : "连接失败"));
+              } catch (error) {
+                setMsg(error instanceof Error ? `连接失败：${error.message}` : "连接失败");
+              }
             }}
           >
             测试连接

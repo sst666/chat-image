@@ -20,8 +20,8 @@ export async function POST(req: Request) {
       baseUrl: defaultSettings.baseUrl,
       promptModel: defaultSettings.promptModel,
     };
-    await saveSettings(next);
-    return NextResponse.json(next);
+    const saved = await saveSettings(next);
+    return NextResponse.json(saved);
   } catch (error) {
     console.error("[api/settings] POST failed:", error);
     return NextResponse.json({ message: "保存设置失败，请检查 data 目录写权限" }, { status: 500 });

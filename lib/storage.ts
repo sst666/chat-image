@@ -3,7 +3,9 @@ import path from "path";
 import { defaultEntries, defaultSettings } from "./defaults";
 import { AppLog, AppSettings, GeneratedImage, GenerationJob, PromptEntry } from "./types";
 
-const root = process.cwd();
+const cwd = process.cwd();
+const normalizedCwd = cwd.replace(/\\/g, "/");
+const root = normalizedCwd.endsWith("/.next/standalone") ? path.resolve(cwd, "..", "..") : cwd;
 const dataDir = path.join(root, "data");
 
 const files = {
