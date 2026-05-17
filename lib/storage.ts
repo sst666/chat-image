@@ -19,13 +19,29 @@ async function ensureDataDir() {
   await fs.mkdir(path.join(root, "public", "outputs"), { recursive: true });
 }
 
+async function ensureDataDirSafe() {
+  try {
+    await ensureDataDir();
+    return true;
+  } catch (error) {
+    console.error("[storage] ensureDataDir failed:", error);
+    return false;
+  }
+}
+
 async function readJson<T>(file: string, fallback: T): Promise<T> {
-  await ensureDataDir();
+  const ready = await ensureDataDirSafe();
+  if (!ready) return fallback;
   try {
     const raw = await fs.readFile(file, "utf8");
     return JSON.parse(raw) as T;
-  } catch {
-    await writeJson(file, fallback);
+  } catch (error) {
+    console.warn("[storage] readJson fallback for", file, error);
+    try {
+      await writeJson(file, fallback);
+    } catch (writeError) {
+      console.error("[storage] writeJson fallback failed for", file, writeError);
+    }
     return fallback;
   }
 }
@@ -68,8 +84,13 @@ export async function saveEntries(entries: PromptEntry[]) {
 }
 
 export async function getSettings() {
-  const settings = await readJson<Partial<AppSettings>>(files.settings, defaultSettings);
-  return normalizeSettings(settings);
+  try {
+    const settings = await readJson<Partial<AppSettings>>(files.settings, defaultSettings);
+    return normalizeSettings(settings);
+  } catch (error) {
+    console.error("[storage] getSettings failed:", error);
+    return normalizeSettings(defaultSettings);
+  }
 }
 
 export async function saveSettings(settings: AppSettings) {
@@ -164,7 +185,12 @@ export function toImageUrl(outputPath: string) {
 }
 
 export async function getLogs() {
-  return readJson<AppLog[]>(files.logs, []);
+  try {
+    return await readJson<AppLog[]>(files.logs, []);
+  } catch (error) {
+    console.error("[storage] getLogs failed:", error);
+    return [];
+  }
 }
 
 export async function appendLog(log: Omit<AppLog, "id" | "createdAt">) {
