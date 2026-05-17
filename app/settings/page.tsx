@@ -1,18 +1,56 @@
 "use client";
 
 import { ExternalLink, Plus, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export default function SettingsPage() {
   const [data, setData] = useState<any>(null);
   const [msg, setMsg] = useState("");
   const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
-  useEffect(() => {
-    fetch("/api/settings").then((r) => r.json()).then(setData);
-    fetch("/api/logs").then((r) => r.json()).then(setLogs);
+  const loadPageData = useCallback(async () => {
+    setLoading(true);
+    setLoadError("");
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    try {
+      const controller = new AbortController();
+      timer = setTimeout(() => controller.abort(), 10000);
+      const [settingsRes, logsRes] = await Promise.all([
+        fetch("/api/settings", { cache: "no-store", signal: controller.signal }),
+        fetch("/api/logs", { cache: "no-store", signal: controller.signal }),
+      ]);
+      if (!settingsRes.ok) {
+        throw new Error(`设置加载失败（${settingsRes.status}）`);
+      }
+      const settings = await settingsRes.json();
+      const logsData = logsRes.ok ? await logsRes.json() : [];
+      setData(settings);
+      setLogs(Array.isArray(logsData) ? logsData : []);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "设置加载失败，请重试");
+    } finally {
+      if (timer) clearTimeout(timer);
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    void loadPageData();
+  }, [loadPageData]);
+
+  if (loading) return <div className="text-sm app-muted">加载中...</div>;
+  if (loadError) {
+    return (
+      <div className="app-card max-w-2xl rounded-3xl p-6">
+        <div className="text-sm app-status-danger">{loadError}</div>
+        <button className="app-button-secondary mt-4 px-4 py-2 text-sm" onClick={() => void loadPageData()}>
+          重新加载
+        </button>
+      </div>
+    );
+  }
   if (!data) return <div className="text-sm app-muted">加载中...</div>;
 
   const backupImageModels = Array.isArray(data.backupImageModels) ? data.backupImageModels : [];

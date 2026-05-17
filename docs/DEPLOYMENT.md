@@ -56,7 +56,7 @@ npm run build
 
 ### 3.3 启动
 
-默认端口是 `306`：
+默认端口是 `3018`：
 
 ```bash
 npm run start
@@ -71,7 +71,7 @@ PORT=3080 HOST=0.0.0.0 npm run start
 ### 3.4 健康检查
 
 ```bash
-curl http://127.0.0.1:306/api/health
+curl http://127.0.0.1:3018/api/health
 ```
 
 ---
@@ -125,9 +125,9 @@ docker build -t chat-image:latest .
 ```bash
 docker run -d \
   --name chat-image \
-  -p 306:306 \
+  -p 3018:3018 \
   -e NODE_ENV=production \
-  -e PORT=306 \
+  -e PORT=3018 \
   -e HOST=0.0.0.0 \
   -v $(pwd)/data:/app/data \
   -v $(pwd)/public/uploads:/app/public/uploads \
@@ -145,7 +145,7 @@ docker logs -f chat-image
 ### 5.4 健康检查
 
 ```bash
-docker exec chat-image wget -qO- http://127.0.0.1:306/api/health
+docker exec chat-image wget -qO- http://127.0.0.1:3018/api/health
 ```
 
 ---
@@ -165,7 +165,7 @@ cp .env.example .env
 默认内容：
 
 ```env
-APP_PORT=306
+APP_PORT=3018
 ```
 
 ### 6.2 启动
@@ -201,7 +201,7 @@ docker compose down
 
 1. 复制到 Nginx 站点目录
 2. 把 `server_name _;` 改成你的域名
-3. `proxy_pass` 默认指向 `127.0.0.1:306`
+3. `proxy_pass` 默认指向 `127.0.0.1:3018`
 4. 重载 Nginx
 
 ```bash
@@ -244,7 +244,7 @@ sudo systemctl status chat-image
 
 应用启动后，打开：
 
-- `http://你的地址:306/settings`
+- `http://你的地址:3018/settings`
 
 然后配置：
 
@@ -320,7 +320,7 @@ Docker 模式下请确认宿主机挂载目录本身可写。
 先在容器或服务器本机执行：
 
 ```bash
-curl http://127.0.0.1:306/api/health
+curl http://127.0.0.1:3018/api/health
 ```
 
 如果这里不通，先排查应用进程本身；如果这里通但外部不通，再排查 Nginx、防火墙或云安全组。

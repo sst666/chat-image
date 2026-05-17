@@ -7,7 +7,7 @@ module.exports = {
       cwd: __dirname,
       env: {
         NODE_ENV: "production",
-        PORT: "306",
+        PORT: "3018",
         HOST: "0.0.0.0",
       },
     },

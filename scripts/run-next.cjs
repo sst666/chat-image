@@ -10,7 +10,7 @@ if (!mode || !["dev", "start"].includes(mode)) {
   process.exit(1);
 }
 
-const port = process.env.PORT || "306";
+const port = process.env.PORT || "3018";
 const host = process.env.HOST || process.env.HOSTNAME || "0.0.0.0";
 const nextBin = require.resolve("next/dist/bin/next");
 const command = [process.execPath, [nextBin, mode, "-p", port, "-H", host, ...extraArgs]];

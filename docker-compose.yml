@@ -8,17 +8,17 @@ services:
     container_name: chat-image
     restart: unless-stopped
     ports:
-      - "${APP_PORT:-306}:306"
+      - "${APP_PORT:-3018}:3018"
     environment:
       NODE_ENV: production
-      PORT: 306
+      PORT: 3018
       HOST: 0.0.0.0
     volumes:
       - ./data:/app/data
       - ./public/uploads:/app/public/uploads
       - ./public/outputs:/app/public/outputs
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:306/api/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3018/api/health"]
       interval: 30s
       timeout: 5s
       retries: 3
