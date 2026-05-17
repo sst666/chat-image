@@ -1,11 +1,10 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { defaultEntries, defaultSettings } from "./defaults";
+import { resolveProjectRoot } from "./project-root";
 import { AppLog, AppSettings, GeneratedImage, GenerationJob, PromptEntry } from "./types";
 
-const cwd = process.cwd();
-const normalizedCwd = cwd.replace(/\\/g, "/");
-const root = normalizedCwd.endsWith("/.next/standalone") ? path.resolve(cwd, "..", "..") : cwd;
+const root = resolveProjectRoot();
 const dataDir = path.join(root, "data");
 
 const files = {

@@ -2,7 +2,9 @@ import { promises as fs } from "fs";
 import path from "path";
 import { v4 as uuid } from "uuid";
 import { generateImage } from "./ai";
+import { resolveProjectRoot } from "./project-root";
 import { appendLog, getJob, getSettings, toImageUrl, updateJob } from "./storage";
+import { clearRuntimeSettings, getRuntimeSettings } from "./runtime-settings";
 import { GenerationJob } from "./types";
 const processing = new Set<string>();
 
@@ -26,6 +28,8 @@ export async function processJob(jobId: string) {
   if (!job || (job.status !== "queued" && job.status !== "running")) return;
 
   const settings = await getSettings();
+  const runtimeSettings = getRuntimeSettings(jobId);
+  const effectiveSettings = runtimeSettings ?? settings;
   job.status = "running";
   job.updatedAt = new Date().toISOString();
   await updateJob(job);
@@ -33,7 +37,10 @@ export async function processJob(jobId: string) {
   const worker = async () => {
     while (true) {
       const latest = await getJob(jobId);
-      if (!latest || latest.status === "cancelled") return;
+      if (!latest || latest.status === "cancelled") {
+        clearRuntimeSettings(jobId);
+        return;
+      }
       const image = latest.images.find((i) => i.status === "queued");
       if (!image) return;
       image.status = "running";
@@ -45,11 +52,11 @@ export async function processJob(jobId: string) {
       try {
         const task = latest.tasks.find((t) => t.id === image.taskId);
         if (!task) throw new Error("任务不存在");
-        const outDir = path.join(process.cwd(), "public", "outputs", latest.id);
+        const outDir = path.join(resolveProjectRoot(), "public", "outputs", latest.id);
         await fs.mkdir(outDir, { recursive: true });
         const filename = `${task.type}-${task.id}-${uuid()}.png`;
         const filepath = path.join(outDir, filename);
-        const generated = await generateImage(settings, task, latest.product);
+        const generated = await generateImage(effectiveSettings, task, latest.product);
         image.progress = 70;
         latest.updatedAt = new Date().toISOString();
         await updateJob(latest);
@@ -90,6 +97,7 @@ export async function processJob(jobId: string) {
       message: "任务完成",
       detail: `任务ID: ${finalJob.id}，状态: ${finalJob.status}`,
     });
+    clearRuntimeSettings(jobId);
   }
   } finally {
     processing.delete(jobId);

@@ -1,6 +1,7 @@
 import { AppSettings, ProductInput, PromptTask, UploadedImage } from "./types";
 import { promises as fs } from "fs";
 import path from "path";
+import { resolveProjectRoot } from "./project-root";
 
 function fidelityInstruction(fidelity: ProductInput["fidelity"]) {
   if (fidelity === "high") return "商品保真度最高，必须严格保留商品颜色、版型、轮廓、材质和纹理，不改动核心设计。";
@@ -70,7 +71,12 @@ function pickReference(uploaded: UploadedImage[], task: PromptTask) {
 async function toDataUrl(reference?: UploadedImage | null) {
   if (!reference) return null;
   if (reference.url.startsWith("http")) return reference.url;
-  const localPath = path.join(process.cwd(), "public", reference.url.replace(/^\//, ""));
+  const rawUrl = String(reference.url || "");
+  const uploadRelative =
+    rawUrl.startsWith("/api/uploads/") ? rawUrl.slice("/api/uploads/".length) :
+    rawUrl.startsWith("/uploads/") ? rawUrl.slice("/uploads/".length) :
+    rawUrl.replace(/^\//, "");
+  const localPath = path.join(resolveProjectRoot(), "public", "uploads", decodeURIComponent(uploadRelative));
   const buf = await fs.readFile(localPath);
   return `data:${reference.mimeType || "image/png"};base64,${buf.toString("base64")}`;
 }

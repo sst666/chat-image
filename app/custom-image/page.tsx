@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Download, FolderDown, ImagePlus, Images, Plus, Sparkles, Trash2, WandSparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createId } from "@/lib/id";
+import { readClientSettings } from "@/lib/client-settings";
 import { PromptTask, UploadedImage, UploadKind } from "@/lib/types";
 
 type UploadSlot = "product" | "reference";
@@ -190,8 +191,16 @@ function resolveSizeByAspectRatio(ratio: AspectRatioValue, customWidth: number, 
 
 function normalizeUploadUrl(image?: Pick<UploadedImage, "url" | "filename"> | null) {
   if (!image) return "";
-  if (image.url) return String(image.url);
-  if (image.filename) return `/uploads/${encodeURIComponent(String(image.filename))}`;
+  if (image.url) {
+    const raw = String(image.url);
+    if (raw.startsWith("/api/uploads/")) return raw;
+    if (raw.startsWith("/uploads/")) {
+      const filename = raw.slice("/uploads/".length);
+      return `/api/uploads/${filename}`;
+    }
+    return raw;
+  }
+  if (image.filename) return `/api/uploads/${encodeURIComponent(String(image.filename))}`;
   return "";
 }
 
@@ -457,6 +466,7 @@ export default function CustomImagePage() {
           },
           tasks: [task],
           concurrency: 1,
+          settings: readClientSettings(),
         }),
       });
       const data = await res.json();

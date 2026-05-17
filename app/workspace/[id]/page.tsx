@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { defaultEntries, requirementLabels } from "@/lib/defaults";
+import { readClientSettings } from "@/lib/client-settings";
 import { PromptEntry, PromptTask, UploadedImage, UploadKind } from "@/lib/types";
 import { buildTasks, readWorkbenchState, WorkbenchTask, writeWorkbenchState } from "@/lib/workbench-store";
 import { createId } from "@/lib/id";
@@ -32,6 +33,14 @@ function pickReferenceId(task: PromptTask, uploads: UploadedImage[]) {
   if (task.referenceImageId && uploads.some((item) => item.id === task.referenceImageId)) return task.referenceImageId;
   const byKind = uploads.find((item) => item.kind === pickKindByTask(task));
   return byKind?.id ?? uploads[0]?.id;
+}
+
+function normalizeUploadUrl(url: string, filename?: string) {
+  const raw = String(url || "");
+  if (raw.startsWith("/api/uploads/")) return raw;
+  if (raw.startsWith("/uploads/")) return `/api/uploads/${raw.slice("/uploads/".length)}`;
+  if (!raw && filename) return `/api/uploads/${encodeURIComponent(filename)}`;
+  return raw;
 }
 
 export default function WorkspacePage() {
@@ -143,7 +152,7 @@ export default function WorkspacePage() {
       const res = await fetch("/api/prompts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ product: productPayload(active), tasks: selectedTasks }),
+        body: JSON.stringify({ product: productPayload(active), tasks: selectedTasks, settings: readClientSettings() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "提示词生成失败");
@@ -172,7 +181,7 @@ export default function WorkspacePage() {
       const res = await fetch("/api/jobs", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId: active.jobId, ...payload }),
+        body: JSON.stringify({ jobId: active.jobId, settings: readClientSettings(), ...payload }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || failMessage || "操作失败");
@@ -195,7 +204,12 @@ export default function WorkspacePage() {
     const latestState = readWorkbenchState();
     const latestWorkbench = latestState.workbenches.find((w) => w.id === params.id) ?? active;
     const currentJobId = latestWorkbench.jobId;
-    const body = { product: productPayload(latestWorkbench), tasks, concurrency: latestWorkbench.dualThread ? 2 : 1 };
+    const body = {
+      product: productPayload(latestWorkbench),
+      tasks,
+      concurrency: latestWorkbench.dualThread ? 2 : 1,
+      settings: readClientSettings(),
+    };
     let data: any;
     try {
       if (!currentJobId) {
@@ -307,7 +321,7 @@ export default function WorkspacePage() {
           <div className="grid grid-cols-4 gap-2">
             {active.uploads.map((u) => (
               <div key={u.id} className="rounded border border-slate-700 p-1">
-                <img src={u.url} alt={u.originalName} className="h-14 w-full rounded object-cover" />
+                <img src={normalizeUploadUrl(u.url, u.filename)} alt={u.originalName} className="h-14 w-full rounded object-cover" />
                 <div className="truncate text-[10px] text-slate-300">{u.originalName}</div>
                 <button className="mt-1 w-full rounded bg-rose-700 px-1 py-0.5 text-[10px]" onClick={() => removeUpload(u.id)}>删除</button>
               </div>

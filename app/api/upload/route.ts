@@ -2,6 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
+import { resolveProjectRoot } from "@/lib/project-root";
 
 export async function POST(req: Request) {
   const form = await req.formData();
@@ -11,7 +12,7 @@ export async function POST(req: Request) {
   const bytes = Buffer.from(await file.arrayBuffer());
   const ext = path.extname(file.name) || ".png";
   const filename = `${uuid()}${ext}`;
-  const dir = path.join(process.cwd(), "public", "uploads");
+  const dir = path.join(resolveProjectRoot(), "public", "uploads");
   await fs.mkdir(dir, { recursive: true });
   const out = path.join(dir, filename);
   await fs.writeFile(out, bytes);
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
     id: uuid(),
     filename,
     originalName: file.name,
-    url: `/uploads/${filename}`,
+    url: `/api/uploads/${encodeURIComponent(filename)}`,
     kind,
     mimeType: file.type || "image/png",
     createdAt: new Date().toISOString(),

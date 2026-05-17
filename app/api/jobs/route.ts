@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
 import { processJob } from "@/lib/server-job";
 import { appendLog, getJob, getJobs, replaceJob, updateJob } from "@/lib/storage";
+import { normalizeClientSettings } from "@/lib/client-settings";
+import { clearRuntimeSettings, setRuntimeSettings } from "@/lib/runtime-settings";
 import { GenerationJob, ProductInput, PromptTask } from "@/lib/types";
 
 export async function GET(req: Request) {
@@ -21,6 +23,7 @@ export async function POST(req: Request) {
   const tasks = body.tasks as PromptTask[];
   const concurrency = Math.max(1, Math.min(2, Number(body.concurrency ?? 1)));
   const now = new Date().toISOString();
+  const runtimeSettings = body?.settings ? normalizeClientSettings(body.settings) : null;
   const job: GenerationJob = {
     id: uuid(),
     title: product.title || "未命名任务",
@@ -41,6 +44,9 @@ export async function POST(req: Request) {
     })),
   };
   await updateJob(job);
+  if (runtimeSettings) {
+    setRuntimeSettings(job.id, runtimeSettings);
+  }
   await appendLog({
     type: "generation",
     message: "创建生成任务",
@@ -54,9 +60,13 @@ export async function PATCH(req: Request) {
   const body = await req.json();
   const job = await getJob(body.jobId);
   if (!job) return NextResponse.json({ error: "任务不存在" }, { status: 404 });
+  if (body?.settings) {
+    setRuntimeSettings(job.id, normalizeClientSettings(body.settings));
+  }
   let shouldReplace = false;
   if (body.action === "cancel-job") {
     job.status = "cancelled";
+    clearRuntimeSettings(job.id);
   }
   if (body.action === "cancel-image") {
     const image = job.images.find((item) => item.id === body.imageId);

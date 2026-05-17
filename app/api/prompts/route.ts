@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { generatePrompts } from "@/lib/ai";
 import { appendLog, getSettings } from "@/lib/storage";
+import { normalizeClientSettings } from "@/lib/client-settings";
 import { ProductInput, PromptTask } from "@/lib/types";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const settings = await getSettings();
+    const settings = body?.settings ? normalizeClientSettings(body.settings) : await getSettings();
     const product = body.product as ProductInput;
     const tasks = body.tasks as PromptTask[];
     const result = await generatePrompts(settings, product, tasks);

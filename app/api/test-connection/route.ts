@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { getSettings } from "@/lib/storage";
+import { normalizeClientSettings } from "@/lib/client-settings";
 
-export async function POST() {
-  const settings = await getSettings();
+export async function POST(req: Request) {
+  const body = await req.json().catch(() => ({}));
+  const settings = normalizeClientSettings(body?.settings);
   if (!settings.apiKey) return NextResponse.json({ ok: false, message: "API Key 为空" }, { status: 400 });
   const res = await fetch(`${settings.baseUrl.replace(/\/$/, "")}/v1/chat/completions`, {
     method: "POST",

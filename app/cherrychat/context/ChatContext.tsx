@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useReducer } from "react";
+import React, { createContext, useCallback, useContext, useReducer } from "react";
 import type { ApiConfig, Conversation, Message } from "../types";
 
 const LS_SETTINGS = "bywlai-settings";
@@ -296,34 +296,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   });
 
   const currentConversation = state.conversations.find((c) => c.id === state.currentConvId) ?? null;
-
-  useEffect(() => {
-    const syncSharedApiKeyFromImage = async () => {
-      try {
-        const shared = await fetch("/api/settings").then((r) => r.json());
-        if (shared?.apiKey && shared.apiKey !== state.config.apiKey) {
-          dispatch({
-            type: "SET_CONFIG",
-            payload: { ...state.config, apiKey: shared.apiKey },
-          });
-          if (state.settingsOpen) {
-            dispatch({ type: "SET_SETTINGS_OPEN", payload: false });
-          }
-        }
-      } catch {
-        // ignore and keep local chat config
-      }
-    };
-    void syncSharedApiKeyFromImage();
-    const interval = setInterval(() => {
-      void syncSharedApiKeyFromImage();
-    }, 10000);
-    window.addEventListener("focus", syncSharedApiKeyFromImage);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener("focus", syncSharedApiKeyFromImage);
-    };
-  }, [dispatch, state.config, state.settingsOpen]);
 
   const sendMessage = useCallback(
     async (content: string, images?: string[], files?: Message["files"]) => {

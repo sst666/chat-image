@@ -8,11 +8,12 @@ const mimeMap: Record<string, string> = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".webp": "image/webp",
+  ".gif": "image/gif",
 };
 
-export async function GET(_: Request, { params }: { params: { path: string[] } }) {
-  const rel = params.path.map(decodeURIComponent).join(path.sep);
-  const full = path.join(resolveProjectRoot(), "public", "outputs", rel);
+export async function GET(_: Request, { params }: { params: { filename: string } }) {
+  const filename = decodeURIComponent(params.filename || "");
+  const full = path.join(resolveProjectRoot(), "public", "uploads", filename);
   try {
     const data = await fs.readFile(full);
     const ext = path.extname(full).toLowerCase();

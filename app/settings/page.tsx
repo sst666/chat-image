@@ -2,56 +2,39 @@
 
 import { ExternalLink, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { readClientSettings, writeClientSettings } from "@/lib/client-settings";
 
 export default function SettingsPage() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<any>(() => readClientSettings());
   const [msg, setMsg] = useState("");
   const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
+  const [loadingLogs, setLoadingLogs] = useState(true);
+  const [loadLogsError, setLoadLogsError] = useState("");
 
-  const loadPageData = useCallback(async () => {
-    setLoading(true);
-    setLoadError("");
+  const loadLogs = useCallback(async () => {
+    setLoadingLogs(true);
+    setLoadLogsError("");
     let timer: ReturnType<typeof setTimeout> | null = null;
     try {
       const controller = new AbortController();
       timer = setTimeout(() => controller.abort(), 10000);
-      const [settingsRes, logsRes] = await Promise.all([
-        fetch("/api/settings", { cache: "no-store", signal: controller.signal }),
-        fetch("/api/logs", { cache: "no-store", signal: controller.signal }),
-      ]);
-      if (!settingsRes.ok) {
-        throw new Error(`设置加载失败（${settingsRes.status}）`);
+      const logsRes = await fetch("/api/logs", { cache: "no-store", signal: controller.signal });
+      if (!logsRes.ok) {
+        throw new Error(`日志加载失败（${logsRes.status}）`);
       }
-      const settings = await settingsRes.json();
-      const logsData = logsRes.ok ? await logsRes.json() : [];
-      setData(settings);
+      const logsData = await logsRes.json();
       setLogs(Array.isArray(logsData) ? logsData : []);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "设置加载失败，请重试");
+      setLoadLogsError(error instanceof Error ? error.message : "日志加载失败，请重试");
     } finally {
       if (timer) clearTimeout(timer);
-      setLoading(false);
+      setLoadingLogs(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadPageData();
-  }, [loadPageData]);
-
-  if (loading) return <div className="text-sm app-muted">加载中...</div>;
-  if (loadError) {
-    return (
-      <div className="app-card max-w-2xl rounded-3xl p-6">
-        <div className="text-sm app-status-danger">{loadError}</div>
-        <button className="app-button-secondary mt-4 px-4 py-2 text-sm" onClick={() => void loadPageData()}>
-          重新加载
-        </button>
-      </div>
-    );
-  }
-  if (!data) return <div className="text-sm app-muted">加载中...</div>;
+    void loadLogs();
+  }, [loadLogs]);
 
   const backupImageModels = Array.isArray(data.backupImageModels) ? data.backupImageModels : [];
 
@@ -171,25 +154,11 @@ export default function SettingsPage() {
             className="app-button-primary px-4 py-3 text-sm"
             onClick={async () => {
               try {
-                const payload = {
+                const payload = writeClientSettings({
                   ...data,
                   backupImageModels: backupImageModels.map((item: string) => String(item || "").trim()).filter(Boolean),
-                };
-                const res = await fetch("/api/settings", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(payload),
                 });
-                const next = await res.json();
-                if (!res.ok) {
-                  setMsg(next?.message || `保存失败（${res.status}）`);
-                  return;
-                }
-                if (!next || typeof next !== "object") {
-                  setMsg("保存失败：返回数据异常");
-                  return;
-                }
-                setData(next);
+                setData(payload);
                 setMsg("保存成功");
               } catch (error) {
                 setMsg(error instanceof Error ? `保存失败：${error.message}` : "保存失败");
@@ -202,7 +171,11 @@ export default function SettingsPage() {
             className="app-button-secondary px-4 py-3 text-sm"
             onClick={async () => {
               try {
-                const res = await fetch("/api/test-connection", { method: "POST" });
+                const res = await fetch("/api/test-connection", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ settings: data }),
+                });
                 const t = await res.json();
                 if (!res.ok) {
                   setMsg(t?.message || `连接失败（${res.status}）`);
@@ -223,10 +196,12 @@ export default function SettingsPage() {
       <div className="app-card rounded-3xl p-5">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-base font-semibold">生成与报错记录</h3>
-          <button className="app-button-secondary px-3 py-2 text-xs" onClick={async () => setLogs(await fetch("/api/logs").then((r) => r.json()))}>
+          <button className="app-button-secondary px-3 py-2 text-xs" onClick={() => void loadLogs()}>
             刷新
           </button>
         </div>
+        {loadingLogs ? <div className="mb-3 text-xs app-muted">日志加载中...</div> : null}
+        {loadLogsError ? <div className="mb-3 text-xs app-status-danger">{loadLogsError}</div> : null}
         <div className="max-h-[360px] space-y-2 overflow-auto text-sm">
           {logs.map((log) => (
             <div key={log.id} className="app-card-soft rounded-2xl p-3">
