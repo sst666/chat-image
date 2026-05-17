@@ -50,6 +50,7 @@ type Action =
   | { type: "UPDATE_MESSAGE"; payload: { convId: string; messageId: string; content: string; timestamp?: number } }
   | { type: "SET_LOADING"; payload: boolean }
   | { type: "SET_PENDING_MESSAGE_ID"; payload: string | null }
+  | { type: "SET_SETTINGS_OPEN"; payload: boolean }
   | { type: "TOGGLE_SETTINGS" }
   | { type: "SET_SEARCH"; payload: string }
   | { type: "ADD_RECENT_MODEL"; payload: string }
@@ -205,6 +206,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, isLoading: action.payload };
     case "SET_PENDING_MESSAGE_ID":
       return { ...state, pendingMessageId: action.payload };
+    case "SET_SETTINGS_OPEN":
+      return { ...state, settingsOpen: action.payload };
     case "TOGGLE_SETTINGS":
       return { ...state, settingsOpen: !state.settingsOpen };
     case "SET_SEARCH":
@@ -287,7 +290,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       models: [],
       isLoading: false,
       pendingMessageId: null,
-      settingsOpen: !config.apiKey,
+      settingsOpen: false,
       searchQuery: "",
     };
   });
@@ -303,6 +306,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             type: "SET_CONFIG",
             payload: { ...state.config, apiKey: shared.apiKey },
           });
+          if (state.settingsOpen) {
+            dispatch({ type: "SET_SETTINGS_OPEN", payload: false });
+          }
         }
       } catch {
         // ignore and keep local chat config
@@ -317,7 +323,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       clearInterval(interval);
       window.removeEventListener("focus", syncSharedApiKeyFromImage);
     };
-  }, [dispatch, state.config]);
+  }, [dispatch, state.config, state.settingsOpen]);
 
   const sendMessage = useCallback(
     async (content: string, images?: string[], files?: Message["files"]) => {
