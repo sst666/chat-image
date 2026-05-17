@@ -353,8 +353,15 @@ export default function CustomImagePage() {
         form.append("file", file);
         form.append("kind", kind);
         const res = await fetch("/api/upload", { method: "POST", body: form });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "上传失败");
+        const raw = await res.text();
+        let data: any = null;
+        try {
+          data = raw ? JSON.parse(raw) : null;
+        } catch {
+          throw new Error("上传接口返回异常，请稍后重试");
+        }
+        if (!res.ok) throw new Error(data?.error || "上传失败");
+        if (!data?.url) throw new Error("上传失败：接口未返回文件地址");
         added.push(data as UploadedImage);
       }
       patchSlotUploads(slot, [...current, ...added]);

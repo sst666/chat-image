@@ -111,12 +111,26 @@ export default function WorkspacePage() {
   const uploadFiles = async (kind: UploadKind, files: FileList | null) => {
     if (!active || !files?.length) return;
     const added: UploadedImage[] = [];
-    for (const f of Array.from(files)) {
-      const form = new FormData();
-      form.append("file", f);
-      form.append("kind", kind);
-      const item = await fetch("/api/upload", { method: "POST", body: form }).then((r) => r.json());
-      added.push(item);
+    try {
+      for (const f of Array.from(files)) {
+        const form = new FormData();
+        form.append("file", f);
+        form.append("kind", kind);
+        const res = await fetch("/api/upload", { method: "POST", body: form });
+        const raw = await res.text();
+        let item: any = null;
+        try {
+          item = raw ? JSON.parse(raw) : null;
+        } catch {
+          throw new Error("上传接口返回异常，请稍后重试");
+        }
+        if (!res.ok) throw new Error(item?.error || "上传失败");
+        if (!item?.url) throw new Error("上传失败：接口未返回文件地址");
+        added.push(item as UploadedImage);
+      }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "上传失败");
+      return;
     }
     const uploads = [...active.uploads, ...added];
     patchActive({ uploads, tasks: active.tasks.map((task) => ({ ...task, referenceImageId: pickReferenceId(task, uploads) })) });
