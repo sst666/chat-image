@@ -440,10 +440,6 @@ export default function CustomImagePage() {
       setStatusMsg("请至少填写默认提示词或自定义要求");
       return;
     }
-    if (!mergedUploads.length) {
-      setStatusMsg("请至少上传一张产品图或参考图");
-      return;
-    }
     if (active.aspectRatio === "custom" && (!active.customWidth || !active.customHeight)) {
       setStatusMsg("请输入完整的自定义尺寸像素值");
       return;
@@ -572,7 +568,7 @@ export default function CustomImagePage() {
           ))}
           {!uploads.length ? (
             <div className="app-card-soft col-span-full rounded-2xl border-dashed px-4 py-8 text-center text-xs app-muted">
-              暂无图片，先上传或粘贴素材。
+              暂无图片，可直接文生图；也可上传或粘贴素材增强效果。
             </div>
           ) : null}
         </div>

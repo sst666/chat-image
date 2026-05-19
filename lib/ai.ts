@@ -163,7 +163,7 @@ export async function generateImage(settings: AppSettings, task: PromptTask, pro
   const adaptiveHint = task.size === "800xauto" ? "\n构图要求：宽度800，高度自适应，优先保证主体完整和信息清晰。" : "";
   const prompt = buildImagePrompt(task, product, adaptiveHint);
   const endpoint = `${settings.baseUrl.replace(/\/$/, "")}/v1/images/generations`;
-  const useMultipart = references.length > 1 || task.entryId === "custom-image";
+  const useMultipart = references.length > 1 || (task.entryId === "custom-image" && references.length > 0);
   const modelQueue = [settings.imageModel, ...(settings.backupImageModels || [])]
     .map((item) => String(item || "").trim())
     .filter(Boolean)
