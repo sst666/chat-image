@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, CheckCircle, Eye, EyeOff, RefreshCw, Star, Trash2, X } from "lucide-react";
+import { AlertCircle, CheckCircle, RefreshCw, Star, Trash2, X } from "lucide-react";
 import { useChatContext } from "../context/ChatContext";
 import type { ApiConfig } from "../types";
+import { readClientSettings } from "@/lib/client-settings";
 
 export default function SettingsPanel() {
   const { state, dispatch, fetchModels } = useChatContext();
   const [form, setForm] = useState<ApiConfig>({ ...state.config });
-  const [showKey, setShowKey] = useState(false);
   const [testStatus, setTestStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [testMsg, setTestMsg] = useState("");
 
@@ -24,11 +24,10 @@ export default function SettingsPanel() {
     setForm((prev) => ({
       ...prev,
       endpoint: state.config.endpoint,
-      apiKey: state.config.apiKey,
       maxTokens: state.config.maxTokens,
       historyRoundsLimit: state.config.historyRoundsLimit,
     }));
-  }, [state.config.apiKey, state.config.endpoint, state.config.historyRoundsLimit, state.config.maxTokens]);
+  }, [state.config.endpoint, state.config.historyRoundsLimit, state.config.maxTokens]);
 
   if (!state.settingsOpen) return null;
 
@@ -41,12 +40,19 @@ export default function SettingsPanel() {
     setTestStatus("loading");
     setTestMsg("");
     try {
+      const clientSettings = readClientSettings();
+      const runtimeApiKey = String(clientSettings.apiKey || "").trim();
+      if (!runtimeApiKey) {
+        setTestStatus("error");
+        setTestMsg("请先在主设置页填写 API Key");
+        return;
+      }
       const endpoint = form.endpoint.replace(/\/$/, "");
       const res = await fetch(`${endpoint}/v1/messages`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${form.apiKey}`,
+          Authorization: `Bearer ${runtimeApiKey}`,
           "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
@@ -69,8 +75,8 @@ export default function SettingsPanel() {
   }
 
   async function handleFetchModels() {
-    if (!form.apiKey || !form.endpoint) {
-      setTestMsg("请先在设置页填写 API Key");
+    if (!form.endpoint) {
+      setTestMsg("缺少接口地址");
       setTestStatus("error");
       return;
     }
@@ -78,7 +84,7 @@ export default function SettingsPanel() {
     setTestMsg("模型同步中...");
     try {
       dispatch({ type: "SET_CONFIG", payload: form });
-      const list = await fetchModels(form.endpoint, form.apiKey);
+      const list = await fetchModels(form.endpoint);
       setTestStatus("ok");
       setTestMsg(`模型已同步（${list.length} 个）`);
     } catch {
@@ -119,28 +125,7 @@ export default function SettingsPanel() {
         <div className="flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-6">
           <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--panel-muted)] px-4 py-3">
             <div className="text-sm font-medium">接口地址已固定</div>
-            <div className="app-muted mt-1 text-xs">聊天页会自动同步主设置中的主题和 API 参数。</div>
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-[color:var(--text-soft)]">API Key</label>
-            <div className="relative">
-              <input
-                type={showKey ? "text" : "password"}
-                value={form.apiKey}
-                readOnly
-                placeholder="将自动读取设置页中的 API Key"
-                className="app-input cursor-not-allowed pr-10 opacity-80"
-              />
-              <button
-                type="button"
-                onClick={() => setShowKey((v) => !v)}
-                className="app-muted absolute right-2.5 top-1/2 -translate-y-1/2 hover:text-[color:var(--text)]"
-              >
-                {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-            <p className="app-muted mt-1 text-[10px]">请在主设置页维护 API Key，这里只做同步展示。</p>
+            <div className="app-muted mt-1 text-xs">聊天页会自动读取主设置中的 API Key 与接口参数。</div>
           </div>
 
           <div>

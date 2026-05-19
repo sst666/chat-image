@@ -2,6 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useReducer } from "react";
 import type { ApiConfig, Conversation, Message } from "../types";
+import { readClientSettings } from "@/lib/client-settings";
 
 const LS_SETTINGS = "bywlai-settings";
 const LS_CONVERSATIONS = "bywlai-conversations";
@@ -108,6 +109,17 @@ function normalizeChatConfig(config: Partial<ApiConfig> | null | undefined): Api
     model: String(config?.model || "claude-sonnet-4-6"),
     maxTokens: clampInt(Number(config?.maxTokens), 204800, 256, 400000),
     historyRoundsLimit: clampInt(Number(config?.historyRoundsLimit), 60, 1, 200),
+  };
+}
+
+function getRuntimeConfig(config: ApiConfig): ApiConfig {
+  const client = readClientSettings();
+  const endpoint = String(client.baseUrl || config.endpoint || "").trim() || config.endpoint;
+  const apiKey = String(client.apiKey || "").trim() || config.apiKey;
+  return {
+    ...config,
+    endpoint,
+    apiKey,
   };
 }
 
@@ -323,20 +335,21 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: "SET_PENDING_MESSAGE_ID", payload: null });
 
       try {
+        const runtimeConfig = getRuntimeConfig(state.config);
         const history = [...conversation.messages, userMsg];
-        const apiMessages = trimMessagesByRounds(history, state.config.historyRoundsLimit).map(toApiMessage);
-        const model = conversation.model ?? state.config.model;
-        const endpoint = state.config.endpoint.replace(/\/$/, "");
+        const apiMessages = trimMessagesByRounds(history, runtimeConfig.historyRoundsLimit).map(toApiMessage);
+        const model = conversation.model ?? runtimeConfig.model;
+        const endpoint = runtimeConfig.endpoint.replace(/\/$/, "");
 
         const res = await fetch(`${endpoint}/v1/chat/completions`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${state.config.apiKey}`,
+            Authorization: `Bearer ${runtimeConfig.apiKey}`,
           },
           body: JSON.stringify({
             model,
-            max_tokens: clampInt(state.config.maxTokens, 204800, 256, 400000),
+            max_tokens: clampInt(runtimeConfig.maxTokens, 204800, 256, 400000),
             messages: apiMessages,
           }),
         });
@@ -379,8 +392,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const fetchModels = useCallback(
     async (endpoint?: string, apiKey?: string): Promise<string[]> => {
-      const ep = endpoint ?? state.config.endpoint;
-      const key = apiKey ?? state.config.apiKey;
+      const runtimeConfig = getRuntimeConfig(state.config);
+      const ep = endpoint ?? runtimeConfig.endpoint;
+      const key = apiKey ?? runtimeConfig.apiKey;
       if (!key || !ep) return [];
       try {
         const res = await fetch(`${ep.replace(/\/$/, "")}/v1/models`, {
@@ -415,10 +429,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const targetMessage = conv.messages[msgIdx];
       if (targetMessage.role !== "assistant") return;
 
+      const runtimeConfig = getRuntimeConfig(state.config);
       const history = conv.messages.slice(0, msgIdx);
-      const apiMessages = trimMessagesByRounds(history, state.config.historyRoundsLimit).map(toApiMessage);
-      const model = conv.model ?? state.config.model;
-      const endpoint = state.config.endpoint.replace(/\/$/, "");
+      const apiMessages = trimMessagesByRounds(history, runtimeConfig.historyRoundsLimit).map(toApiMessage);
+      const model = conv.model ?? runtimeConfig.model;
+      const endpoint = runtimeConfig.endpoint.replace(/\/$/, "");
 
       dispatch({ type: "SET_LOADING", payload: true });
       dispatch({ type: "SET_PENDING_MESSAGE_ID", payload: messageId });
@@ -428,11 +443,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${state.config.apiKey}`,
+            Authorization: `Bearer ${runtimeConfig.apiKey}`,
           },
           body: JSON.stringify({
             model,
-            max_tokens: clampInt(state.config.maxTokens, 204800, 256, 400000),
+            max_tokens: clampInt(runtimeConfig.maxTokens, 204800, 256, 400000),
             messages: apiMessages,
           }),
         });
