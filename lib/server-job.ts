@@ -29,7 +29,7 @@ export async function processJob(jobId: string) {
 
   const settings = await getSettings();
   const runtimeSettings = getRuntimeSettings(jobId);
-  const effectiveSettings = runtimeSettings ?? settings;
+  const effectiveSettings = runtimeSettings ?? job.settingsSnapshot ?? settings;
   job.status = "running";
   job.updatedAt = new Date().toISOString();
   await updateJob(job);
@@ -52,11 +52,13 @@ export async function processJob(jobId: string) {
       try {
         const task = latest.tasks.find((t) => t.id === image.taskId);
         if (!task) throw new Error("任务不存在");
+        const runtimeLatest = getRuntimeSettings(jobId);
+        const modelSettings = runtimeLatest ?? latest.settingsSnapshot ?? effectiveSettings;
         const outDir = path.join(resolveProjectRoot(), "public", "outputs", latest.id);
         await fs.mkdir(outDir, { recursive: true });
         const filename = `${task.type}-${task.id}-${uuid()}.png`;
         const filepath = path.join(outDir, filename);
-        const generated = await generateImage(effectiveSettings, task, latest.product);
+        const generated = await generateImage(modelSettings, task, latest.product);
         image.progress = 70;
         latest.updatedAt = new Date().toISOString();
         await updateJob(latest);

@@ -2,6 +2,7 @@ import "./globals.css";
 import Link from "next/link";
 import type { Metadata } from "next";
 import ThemeToggle from "@/app/components/theme-toggle";
+import AppProviders from "@/app/providers";
 
 export const metadata: Metadata = {
   title: "加菲猫chat image",
@@ -53,9 +54,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </nav>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-[1480px] px-3 py-3 sm:px-4 sm:py-5">
-          <div className="app-shell">{children}</div>
-        </main>
+        <AppProviders>
+          <main className="mx-auto w-full max-w-[1480px] px-3 py-3 sm:px-4 sm:py-5">
+            <div className="app-shell">{children}</div>
+          </main>
+        </AppProviders>
       </body>
     </html>
   );

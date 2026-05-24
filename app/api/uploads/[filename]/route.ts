@@ -1,7 +1,6 @@
-import { promises as fs } from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
-import { resolveProjectRoot } from "@/lib/project-root";
+import { readUploadFileByFilename } from "@/lib/upload-storage";
 
 const mimeMap: Record<string, string> = {
   ".png": "image/png",
@@ -13,10 +12,9 @@ const mimeMap: Record<string, string> = {
 
 export async function GET(_: Request, { params }: { params: { filename: string } }) {
   const filename = decodeURIComponent(params.filename || "");
-  const full = path.join(resolveProjectRoot(), "public", "uploads", filename);
   try {
-    const data = await fs.readFile(full);
-    const ext = path.extname(full).toLowerCase();
+    const data = await readUploadFileByFilename(filename);
+    const ext = path.extname(filename).toLowerCase();
     return new NextResponse(data, {
       headers: {
         "Content-Type": mimeMap[ext] ?? "application/octet-stream",

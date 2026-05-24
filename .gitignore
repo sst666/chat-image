@@ -5,6 +5,7 @@ node_modules
 .env.production
 .DS_Store
 data/*.json
+data/uploads/*
 public/uploads/*
 public/outputs/*
 !public/uploads/.gitkeep

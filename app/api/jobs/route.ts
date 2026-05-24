@@ -30,6 +30,7 @@ export async function POST(req: Request) {
     product,
     tasks,
     concurrency,
+    settingsSnapshot: runtimeSettings ?? undefined,
     status: "queued",
     createdAt: now,
     updatedAt: now,
@@ -61,7 +62,9 @@ export async function PATCH(req: Request) {
   const job = await getJob(body.jobId);
   if (!job) return NextResponse.json({ error: "任务不存在" }, { status: 404 });
   if (body?.settings) {
-    setRuntimeSettings(job.id, normalizeClientSettings(body.settings));
+    const normalized = normalizeClientSettings(body.settings);
+    setRuntimeSettings(job.id, normalized);
+    job.settingsSnapshot = normalized;
   }
   let shouldReplace = false;
   if (body.action === "cancel-job") {

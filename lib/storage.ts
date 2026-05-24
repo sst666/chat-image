@@ -16,7 +16,6 @@ const files = {
 
 async function ensureDataDir() {
   await fs.mkdir(dataDir, { recursive: true });
-  await fs.mkdir(path.join(root, "public", "uploads"), { recursive: true });
   await fs.mkdir(path.join(root, "public", "outputs"), { recursive: true });
 }
 

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Plus, Settings } from "lucide-react";
-import { ChatProvider } from "./context/ChatContext";
 import Sidebar from "./components/Sidebar";
 import ChatArea from "./components/ChatArea";
 import SettingsPanel from "./components/SettingsPanel";
@@ -10,12 +9,7 @@ import { useChatContext } from "./context/ChatContext";
 
 export default function CherryChatApp() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  return (
-    <ChatProvider>
-      <CherryChatLayout sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-    </ChatProvider>
-  );
+  return <CherryChatLayout sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />;
 }
 
 function CherryChatLayout({

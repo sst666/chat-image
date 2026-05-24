@@ -7,6 +7,34 @@ import { useFileParser } from "../hooks/useFileParser";
 import { usePdf } from "../hooks/usePdf";
 import ModelSelector from "./ModelSelector";
 
+const DRAFT_KEY_PREFIX = "bywlai-chat-draft:";
+
+function getDraftKey(convId: string | null) {
+  return `${DRAFT_KEY_PREFIX}${convId || "new"}`;
+}
+
+function readDraft(convId: string | null) {
+  if (typeof window === "undefined") return "";
+  try {
+    return localStorage.getItem(getDraftKey(convId)) || "";
+  } catch {
+    return "";
+  }
+}
+
+function writeDraft(convId: string | null, text: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const key = getDraftKey(convId);
+    const value = String(text || "");
+    if (!value) {
+      localStorage.removeItem(key);
+      return;
+    }
+    localStorage.setItem(key, value);
+  } catch {}
+}
+
 export default function InputArea() {
   const { state, sendMessage } = useChatContext();
   const [text, setText] = useState("");
@@ -20,6 +48,7 @@ export default function InputArea() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { pdfToImages } = usePdf();
   const { parseFiles } = useFileParser();
+  const activeConvId = state.currentConvId ?? null;
 
   useEffect(() => {
     const ta = textareaRef.current;
@@ -27,6 +56,14 @@ export default function InputArea() {
     ta.style.height = "auto";
     ta.style.height = `${Math.min(ta.scrollHeight, 200)}px`;
   }, [text]);
+
+  useEffect(() => {
+    setText(readDraft(activeConvId));
+  }, [activeConvId]);
+
+  useEffect(() => {
+    writeDraft(activeConvId, text);
+  }, [activeConvId, text]);
 
   function focusTextarea() {
     requestAnimationFrame(() => textareaRef.current?.focus());
@@ -39,6 +76,7 @@ export default function InputArea() {
 
     const draftText = trimmed;
     setText("");
+    writeDraft(activeConvId, "");
     const nextImages = [...images];
     const nextFiles = [...files];
     setImages([]);
@@ -83,6 +121,20 @@ export default function InputArea() {
     );
     setImages((prev) => [...prev, ...results]);
   }, []);
+
+  const handlePasteImages = useCallback(
+    async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const items = Array.from(e.clipboardData?.items || []);
+      const imageFiles = items
+        .filter((item) => item.type.startsWith("image/"))
+        .map((item) => item.getAsFile())
+        .filter(Boolean) as File[];
+      if (!imageFiles.length) return;
+      e.preventDefault();
+      await handleImageFiles(imageFiles);
+    },
+    [handleImageFiles]
+  );
 
   const handlePdfFiles = useCallback(
     async (inputFiles: FileList | File[]) => {
@@ -202,6 +254,7 @@ export default function InputArea() {
             ref={textareaRef}
             value={text}
             onChange={(e) => setText(e.target.value)}
+            onPaste={(e) => void handlePasteImages(e)}
             onCompositionStart={() => setIsComposing(true)}
             onCompositionEnd={(e) => {
               setIsComposing(false);

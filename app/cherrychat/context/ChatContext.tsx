@@ -24,7 +24,58 @@ function loadJson<T>(key: string, fallback: T): T {
 }
 
 function saveJson(key: string, value: unknown): void {
-  localStorage.setItem(key, JSON.stringify(value));
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    if (key !== LS_CONVERSATIONS || !Array.isArray(value)) {
+      console.warn("[chat-storage] save failed:", error);
+      return;
+    }
+
+    // localStorage 空间不足时，优先压缩老消息中的图片与文件附件，尽量保留文本对话。
+    let fallback = compactConversationsForStorage(value as Conversation[], "light");
+    try {
+      localStorage.setItem(key, JSON.stringify(fallback));
+      return;
+    } catch {}
+
+    fallback = compactConversationsForStorage(value as Conversation[], "aggressive");
+    try {
+      localStorage.setItem(key, JSON.stringify(fallback));
+      return;
+    } catch {}
+
+    console.warn("[chat-storage] conversations exceed localStorage quota, skip persist");
+  }
+}
+
+function compactConversationsForStorage(
+  conversations: Conversation[],
+  mode: "light" | "aggressive"
+): Conversation[] {
+  const keepRecentMessages = mode === "light" ? 40 : 16;
+  const keepRecentConversations = mode === "light" ? 40 : 20;
+  const truncatedContent = mode === "light" ? 8000 : 2500;
+
+  return conversations.slice(0, keepRecentConversations).map((conversation) => {
+    const start = Math.max(0, conversation.messages.length - keepRecentMessages);
+    const messages = conversation.messages.slice(start).map((message) => {
+      const nextContent = message.content.length > truncatedContent
+        ? `${message.content.slice(0, truncatedContent)}\n\n[内容已为本地缓存精简]`
+        : message.content;
+      return {
+        ...message,
+        content: nextContent,
+        images: undefined,
+        files: undefined,
+      };
+    });
+    return {
+      ...conversation,
+      messages,
+      updatedAt: conversation.updatedAt,
+    };
+  });
 }
 
 interface State {
@@ -130,6 +181,71 @@ function buildFilePrompt(files?: Message["files"]): string {
     .join("\n\n");
 }
 
+function estimateMessageChars(message: Message): number {
+  const imageChars = (message.images || []).reduce((sum, item) => sum + String(item || "").length, 0);
+  const fileChars = (message.files || []).reduce((sum, file) => {
+    return sum + String(file.name || "").length + String(file.mimeType || "").length + String(file.content || "").length;
+  }, 0);
+  return String(message.content || "").length + imageChars + fileChars;
+}
+
+function trimMessageContent(content: string, maxChars: number) {
+  if (content.length <= maxChars) return content;
+  return `${content.slice(0, maxChars)}\n\n[上下文已自动截断]`;
+}
+
+function toContextMessage(
+  message: Message,
+  options: { keepAttachments: boolean; maxContentChars: number; compact: boolean }
+): Message {
+  const next: Message = {
+    ...message,
+    content: trimMessageContent(String(message.content || ""), options.maxContentChars),
+  };
+
+  if (!options.keepAttachments) {
+    const attachmentCount = (message.images?.length || 0) + (message.files?.length || 0);
+    if (attachmentCount > 0 && options.compact) {
+      next.content = `${next.content}\n\n[已省略 ${attachmentCount} 个旧附件]`;
+    }
+    next.images = undefined;
+    next.files = undefined;
+  }
+
+  return next;
+}
+
+function reduceContextForRequest(history: Message[], config: ApiConfig, compact = false): Message[] {
+  const roundsLimit = compact ? Math.min(config.historyRoundsLimit, 24) : config.historyRoundsLimit;
+  const maxContentChars = compact ? 2200 : 9000;
+  const maxPayloadChars = compact ? 22000 : 70000;
+  const trimmedByRounds = trimMessagesByRounds(history, roundsLimit);
+  if (!trimmedByRounds.length) return [];
+
+  const latestAttachmentUserIndex = (() => {
+    for (let index = trimmedByRounds.length - 1; index >= 0; index -= 1) {
+      const item = trimmedByRounds[index];
+      if (item.role === "user" && ((item.images?.length || 0) > 0 || (item.files?.length || 0) > 0)) {
+        return index;
+      }
+    }
+    return -1;
+  })();
+
+  const normalized = trimmedByRounds.map((message, index, list) => {
+    const keepAttachments = index === latestAttachmentUserIndex || index === list.length - 1;
+    return toContextMessage(message, { keepAttachments, maxContentChars, compact });
+  });
+
+  let totalChars = normalized.reduce((sum, item) => sum + estimateMessageChars(item), 0);
+  while (totalChars > maxPayloadChars && normalized.length > 2) {
+    normalized.shift();
+    totalChars = normalized.reduce((sum, item) => sum + estimateMessageChars(item), 0);
+  }
+
+  return normalized;
+}
+
 function toApiMessage(message: Message) {
   const filePrompt = buildFilePrompt(message.files);
   const text = [message.content, filePrompt ? `附件解析内容:\n${filePrompt}` : ""].filter(Boolean).join("\n\n");
@@ -146,6 +262,17 @@ function toApiMessage(message: Message) {
   }
 
   return { role: message.role, content: text };
+}
+
+function shouldRetryWithCompactContext(status: number, errorText: string) {
+  const normalized = String(errorText || "").toLowerCase();
+  return (
+    status >= 500 ||
+    normalized.includes("internal service error") ||
+    normalized.includes("context") ||
+    normalized.includes("token") ||
+    normalized.includes("length")
+  );
 }
 
 function reducer(state: State, action: Action): State {
@@ -337,22 +464,42 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       try {
         const runtimeConfig = getRuntimeConfig(state.config);
         const history = [...conversation.messages, userMsg];
-        const apiMessages = trimMessagesByRounds(history, runtimeConfig.historyRoundsLimit).map(toApiMessage);
+        const apiMessages = reduceContextForRequest(history, runtimeConfig, false).map(toApiMessage);
         const model = conversation.model ?? runtimeConfig.model;
         const endpoint = runtimeConfig.endpoint.replace(/\/$/, "");
 
-        const res = await fetch(`${endpoint}/v1/chat/completions`, {
+        const requestPayload = (messages: unknown[]) =>
+          JSON.stringify({
+            model,
+            max_tokens: clampInt(runtimeConfig.maxTokens, 204800, 256, 400000),
+            messages,
+          });
+
+        let res = await fetch(`${endpoint}/v1/chat/completions`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${runtimeConfig.apiKey}`,
           },
-          body: JSON.stringify({
-            model,
-            max_tokens: clampInt(runtimeConfig.maxTokens, 204800, 256, 400000),
-            messages: apiMessages,
-          }),
+          body: requestPayload(apiMessages),
         });
+
+        if (!res.ok) {
+          const err = await res.text();
+          if (shouldRetryWithCompactContext(res.status, err)) {
+            const compactMessages = reduceContextForRequest(history, runtimeConfig, true).map(toApiMessage);
+            res = await fetch(`${endpoint}/v1/chat/completions`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${runtimeConfig.apiKey}`,
+              },
+              body: requestPayload(compactMessages),
+            });
+          } else {
+            throw new Error(`API error ${res.status}: ${err}`);
+          }
+        }
 
         if (!res.ok) {
           const err = await res.text();
@@ -431,7 +578,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
       const runtimeConfig = getRuntimeConfig(state.config);
       const history = conv.messages.slice(0, msgIdx);
-      const apiMessages = trimMessagesByRounds(history, runtimeConfig.historyRoundsLimit).map(toApiMessage);
+      const apiMessages = reduceContextForRequest(history, runtimeConfig, false).map(toApiMessage);
       const model = conv.model ?? runtimeConfig.model;
       const endpoint = runtimeConfig.endpoint.replace(/\/$/, "");
 
@@ -439,18 +586,37 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: "SET_PENDING_MESSAGE_ID", payload: messageId });
 
       try {
-        const res = await fetch(`${endpoint}/v1/chat/completions`, {
+        const requestPayload = (messages: unknown[]) =>
+          JSON.stringify({
+            model,
+            max_tokens: clampInt(runtimeConfig.maxTokens, 204800, 256, 400000),
+            messages,
+          });
+
+        let res = await fetch(`${endpoint}/v1/chat/completions`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${runtimeConfig.apiKey}`,
           },
-          body: JSON.stringify({
-            model,
-            max_tokens: clampInt(runtimeConfig.maxTokens, 204800, 256, 400000),
-            messages: apiMessages,
-          }),
+          body: requestPayload(apiMessages),
         });
+        if (!res.ok) {
+          const err = await res.text();
+          if (shouldRetryWithCompactContext(res.status, err)) {
+            const compactMessages = reduceContextForRequest(history, runtimeConfig, true).map(toApiMessage);
+            res = await fetch(`${endpoint}/v1/chat/completions`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${runtimeConfig.apiKey}`,
+              },
+              body: requestPayload(compactMessages),
+            });
+          } else {
+            throw new Error(`API error ${res.status}: ${err}`);
+          }
+        }
         if (!res.ok) {
           const err = await res.text();
           throw new Error(`API error ${res.status}: ${err}`);

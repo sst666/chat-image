@@ -83,6 +83,7 @@ export interface GenerationJob {
   product: ProductInput;
   tasks: PromptTask[];
   images: GeneratedImage[];
+  settingsSnapshot?: AppSettings;
   concurrency?: number;
   status: JobStatus;
   createdAt: string;

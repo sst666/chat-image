@@ -25,6 +25,7 @@ type CustomImageWorkbench = {
   productUploads: UploadedImage[];
   referenceUploads: UploadedImage[];
   jobId: string;
+  generationCount: number;
 };
 
 type CustomImagePersistState = {
@@ -118,6 +119,7 @@ function createEmptyWorkbench(): CustomImageWorkbench {
     productUploads: [],
     referenceUploads: [],
     jobId: "",
+    generationCount: 0,
   };
 }
 
@@ -148,6 +150,7 @@ function readCustomImageState(): CustomImagePersistState | null {
           productUploads: Array.isArray(item.productUploads) ? item.productUploads : [],
           referenceUploads: Array.isArray(item.referenceUploads) ? item.referenceUploads : [],
           jobId: String(item.jobId || ""),
+          generationCount: Math.max(0, Number(item.generationCount || 0)),
         };
       }),
       activeWorkbenchId: String(parsed.activeWorkbenchId || workbenches[0]?.id || ""),
@@ -243,6 +246,18 @@ function statusTone(status?: string) {
     default:
       return "app-muted";
   }
+}
+
+function inferGenerationCountFromJobImages(images: any[] | undefined) {
+  if (!Array.isArray(images)) return 0;
+  let maxIndex = 0;
+  for (const item of images) {
+    const matched = String(item?.title || "").match(/^自定义生图-(\d+)$/);
+    if (!matched) continue;
+    const num = Number(matched[1]);
+    if (Number.isFinite(num) && num > maxIndex) maxIndex = num;
+  }
+  return maxIndex;
 }
 
 export default function CustomImagePage() {
@@ -444,11 +459,14 @@ export default function CustomImagePage() {
       setStatusMsg("请输入完整的自定义尺寸像素值");
       return;
     }
+    const inferredCount = inferGenerationCountFromJobImages(job?.images);
+    const nextGeneration = Math.max(active.generationCount || 0, inferredCount) + 1;
+    const taskTitle = `自定义生图-${nextGeneration}`;
     const task: PromptTask = {
       id: createId(),
       entryId: "custom-image",
       type: resolvedSize.height > resolvedSize.width ? "detail" : "main",
-      title: selectedProcessRequirement.label,
+      title: taskTitle,
       size: resolvedSize.size,
       prompt: [defaultPrompt, customPrompt].filter(Boolean).join("\n"),
       enabled: true,
@@ -456,21 +474,31 @@ export default function CustomImagePage() {
     setSubmitting(true);
     setStatusMsg("任务创建中...");
     try {
+      const payload = {
+        product: {
+          title: active.title.trim() || "自定义生图任务",
+          customRequirement: customPrompt,
+          requirements: [`${selectedProcessRequirement.label}：${selectedProcessRequirement.description}`],
+          fidelity: active.fidelity,
+          uploads: mergedUploads,
+        },
+        tasks: [task],
+        concurrency: 1,
+        settings: readClientSettings(),
+      };
+      const canAppendToExistingJob = Boolean(active.jobId && job?.id === active.jobId);
       const res = await fetch("/api/jobs", {
-        method: "POST",
+        method: canAppendToExistingJob ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          product: {
-            title: active.title.trim() || "自定义生图任务",
-            customRequirement: customPrompt,
-            requirements: [`${selectedProcessRequirement.label}：${selectedProcessRequirement.description}`],
-            fidelity: active.fidelity,
-            uploads: mergedUploads,
-          },
-          tasks: [task],
-          concurrency: 1,
-          settings: readClientSettings(),
-        }),
+        body: JSON.stringify(
+          canAppendToExistingJob
+            ? {
+                ...payload,
+                action: "add-tasks",
+                jobId: active.jobId,
+              }
+            : payload
+        ),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "创建任务失败");
@@ -479,9 +507,10 @@ export default function CustomImagePage() {
         name: active.title.trim() || active.name,
         customWidth: resolvedSize.width,
         customHeight: resolvedSize.height,
+        generationCount: nextGeneration,
       });
       setJob(data);
-      setStatusMsg("任务已创建，正在生成");
+      setStatusMsg(`已提交 ${taskTitle}，正在生成`);
     } catch (error) {
       setStatusMsg(error instanceof Error ? error.message : "创建任务失败");
     } finally {
@@ -836,7 +865,7 @@ export default function CustomImagePage() {
         </div>
 
         <div className="space-y-3">
-          {(job?.images || []).map((item: any, index: number) => (
+          {[...(job?.images || [])].reverse().map((item: any, index: number) => (
             <div key={item.id} className="app-card-soft rounded-2xl p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
