@@ -18,14 +18,14 @@ ENV PORT=3018
 ENV HOST=0.0.0.0
 
 RUN addgroup -g 1001 -S nodejs \
-  && adduser -S nextjs -u 1001
+  && adduser -S -u 1001 -G nodejs nextjs
 
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/data ./data
 
-RUN mkdir -p public/uploads public/outputs \
+RUN mkdir -p data/uploads data data/outputs public/uploads public/outputs \
   && chown -R nextjs:nodejs /app
 
 USER nextjs

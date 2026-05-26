@@ -1,11 +1,46 @@
 import { promises as fs } from "fs";
+import os from "os";
 import path from "path";
 import { resolveProjectRoot } from "./project-root";
 
-export function resolveUploadsDir() {
+let cachedUploadsDir = "";
+
+function uniquePaths(input: string[]) {
+  const list: string[] = [];
+  for (const item of input) {
+    const normalized = path.resolve(item);
+    if (list.includes(normalized)) continue;
+    list.push(normalized);
+  }
+  return list;
+}
+
+function getUploadCandidates() {
+  const root = resolveProjectRoot();
   const customDir = process.env.UPLOAD_DIR || process.env.TB_UPLOAD_DIR;
-  if (customDir) return path.resolve(customDir);
-  return path.join(resolveProjectRoot(), "data", "uploads");
+  return uniquePaths([
+    customDir ? path.resolve(customDir) : "",
+    path.join(root, "data", "uploads"),
+    path.join(root, "public", "uploads"),
+    path.join(os.tmpdir(), "chat-image", "uploads"),
+  ].filter(Boolean));
+}
+
+async function canWriteDir(dir: string) {
+  try {
+    await fs.mkdir(dir, { recursive: true });
+    const probe = path.join(dir, `.probe-${Date.now()}-${Math.random().toString(16).slice(2)}.tmp`);
+    await fs.writeFile(probe, "ok");
+    await fs.unlink(probe);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function resolveUploadsDir() {
+  if (cachedUploadsDir) return cachedUploadsDir;
+  return getUploadCandidates()[0];
 }
 
 function resolveLegacyUploadsDir() {
@@ -13,7 +48,18 @@ function resolveLegacyUploadsDir() {
 }
 
 export async function ensureUploadsDir() {
-  await fs.mkdir(resolveUploadsDir(), { recursive: true });
+  if (cachedUploadsDir) {
+    if (await canWriteDir(cachedUploadsDir)) return cachedUploadsDir;
+    cachedUploadsDir = "";
+  }
+  const candidates = getUploadCandidates();
+  for (const dir of candidates) {
+    if (await canWriteDir(dir)) {
+      cachedUploadsDir = dir;
+      return dir;
+    }
+  }
+  throw new Error("上传目录不可写，请检查容器挂载目录或设置 UPLOAD_DIR");
 }
 
 export function extractUploadFilename(rawUrl: string, fallbackFilename?: string) {
@@ -31,11 +77,15 @@ export function resolveUploadFilePath(filename: string) {
 
 export async function readUploadFileByFilename(filename: string) {
   const normalized = decodeURIComponent(String(filename || ""));
-  const newPath = resolveUploadFilePath(normalized);
-  try {
-    return await fs.readFile(newPath);
-  } catch {
-    const legacyPath = path.join(resolveLegacyUploadsDir(), normalized);
-    return await fs.readFile(legacyPath);
+  const candidates = uniquePaths([
+    resolveUploadFilePath(normalized),
+    ...getUploadCandidates().map((dir) => path.join(dir, normalized)),
+    path.join(resolveLegacyUploadsDir(), normalized),
+  ]);
+  for (const candidate of candidates) {
+    try {
+      return await fs.readFile(candidate);
+    } catch {}
   }
+  throw new Error("上传文件不存在");
 }

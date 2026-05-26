@@ -242,6 +242,16 @@ a {
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-soft) 80%, transparent);
 }
 
+.app-input:disabled,
+.app-input[readonly],
+.app-select:disabled,
+.app-textarea:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+  color: var(--text-soft);
+  background: color-mix(in srgb, var(--panel-muted) 88%, transparent);
+}
+
 .app-badge {
   display: inline-flex;
   align-items: center;

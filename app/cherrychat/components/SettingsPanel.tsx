@@ -33,6 +33,8 @@ export default function SettingsPanel() {
 
   function handleSave() {
     dispatch({ type: "SET_CONFIG", payload: form });
+    setTestStatus("ok");
+    setTestMsg("聊天设置已保存");
     dispatch({ type: "TOGGLE_SETTINGS" });
   }
 
@@ -221,25 +223,29 @@ export default function SettingsPanel() {
         </div>
 
         <div className="flex items-center justify-between border-t border-[color:var(--line)] bg-[color:var(--panel-muted)] px-6 py-4">
-          <button
-            onClick={handleFetchModels}
-            disabled={testStatus === "loading"}
-            className="app-button-secondary flex items-center gap-1.5 px-4 py-2 text-xs disabled:opacity-50"
-          >
-            <RefreshCw size={13} className={testStatus === "loading" ? "animate-spin" : ""} />
-            同步模型列表
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleTest}
+              disabled={testStatus === "loading"}
+              className="app-button-secondary flex items-center gap-1.5 px-4 py-2 text-xs disabled:opacity-50"
+            >
+              <RefreshCw size={13} className={testStatus === "loading" ? "animate-spin" : ""} />
+              测试连接
+            </button>
+            <button
+              onClick={handleFetchModels}
+              disabled={testStatus === "loading"}
+              className="app-button-secondary flex items-center gap-1.5 px-4 py-2 text-xs disabled:opacity-50"
+            >
+              <RefreshCw size={13} className={testStatus === "loading" ? "animate-spin" : ""} />
+              同步模型
+            </button>
+          </div>
           <div className="flex gap-2">
             <button onClick={() => dispatch({ type: "TOGGLE_SETTINGS" })} className="app-button-secondary px-4 py-2 text-sm">
               取消
             </button>
-            <button
-              onClick={() => {
-                handleTest();
-                handleSave();
-              }}
-              className="app-button-primary px-5 py-2 text-sm"
-            >
+            <button onClick={handleSave} className="app-button-primary px-5 py-2 text-sm">
               保存
             </button>
           </div>

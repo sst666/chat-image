@@ -42,6 +42,7 @@ export default function InputArea() {
   const [files, setFiles] = useState<Array<{ name: string; mimeType: string; content: string }>>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isComposing, setIsComposing] = useState(false);
+  const justSentAtRef = useRef(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
@@ -74,6 +75,8 @@ export default function InputArea() {
     if (!trimmed && images.length === 0 && files.length === 0) return;
     if (state.isLoading) return;
 
+    setIsComposing(false);
+    justSentAtRef.current = Date.now();
     const draftText = trimmed;
     setText("");
     writeDraft(activeConvId, "");
@@ -258,6 +261,7 @@ export default function InputArea() {
             onCompositionStart={() => setIsComposing(true)}
             onCompositionEnd={(e) => {
               setIsComposing(false);
+              if (Date.now() - justSentAtRef.current < 180) return;
               setText(e.currentTarget.value);
             }}
             onKeyDown={handleKeyDown}

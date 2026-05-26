@@ -2,7 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
-import { ensureUploadsDir, resolveUploadFilePath } from "@/lib/upload-storage";
+import { ensureUploadsDir } from "@/lib/upload-storage";
 
 export async function POST(req: Request) {
   try {
@@ -13,8 +13,8 @@ export async function POST(req: Request) {
     const bytes = Buffer.from(await file.arrayBuffer());
     const ext = path.extname(file.name) || ".png";
     const filename = `${uuid()}${ext}`;
-    await ensureUploadsDir();
-    const out = resolveUploadFilePath(filename);
+    const uploadDir = await ensureUploadsDir();
+    const out = path.join(uploadDir, filename);
     await fs.writeFile(out, bytes);
     return NextResponse.json({
       id: uuid(),

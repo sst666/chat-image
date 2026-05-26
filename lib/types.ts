@@ -12,16 +12,6 @@ export type UploadKind =
 export type JobStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
 export type ImageStatus = "queued" | "paused" | "running" | "completed" | "failed" | "cancelled";
 
-export interface PromptEntry {
-  id: string;
-  type: EntryType;
-  title: string;
-  defaultPrompt: string;
-  size: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface PromptTask {
   id: string;
   entryId: string;

@@ -7,16 +7,18 @@ services:
       dockerfile: Dockerfile
     container_name: chat-image
     restart: unless-stopped
+    user: "1001:1001"
     ports:
       - "${APP_PORT:-3018}:3018"
     environment:
       NODE_ENV: production
       PORT: 3018
       HOST: 0.0.0.0
+      DATA_DIR: ${DATA_DIR:-/app/data}
+      UPLOAD_DIR: ${UPLOAD_DIR:-/app/data/uploads}
+      OUTPUT_DIR: ${OUTPUT_DIR:-/app/data/outputs}
     volumes:
       - ./data:/app/data
-      - ./public/uploads:/app/public/uploads
-      - ./public/outputs:/app/public/outputs
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3018/api/health"]
       interval: 30s

@@ -2,7 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { v4 as uuid } from "uuid";
 import { generateImage } from "./ai";
-import { resolveProjectRoot } from "./project-root";
+import { ensureOutputsDir } from "./output-storage";
 import { appendLog, getJob, getSettings, toImageUrl, updateJob } from "./storage";
 import { clearRuntimeSettings, getRuntimeSettings } from "./runtime-settings";
 import { GenerationJob } from "./types";
@@ -54,7 +54,8 @@ export async function processJob(jobId: string) {
         if (!task) throw new Error("任务不存在");
         const runtimeLatest = getRuntimeSettings(jobId);
         const modelSettings = runtimeLatest ?? latest.settingsSnapshot ?? effectiveSettings;
-        const outDir = path.join(resolveProjectRoot(), "public", "outputs", latest.id);
+        const outputRoot = await ensureOutputsDir();
+        const outDir = path.join(outputRoot, latest.id);
         await fs.mkdir(outDir, { recursive: true });
         const filename = `${task.type}-${task.id}-${uuid()}.png`;
         const filepath = path.join(outDir, filename);

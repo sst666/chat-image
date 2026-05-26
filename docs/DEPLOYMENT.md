@@ -30,11 +30,12 @@
 
 项目运行时会写入以下目录：
 
-- `data/`：设置、任务、日志、历史数据
-- `public/uploads/`：上传素材
-- `public/outputs/`：生成图片结果
+- `data/`：上传素材、生成任务、日志、输出结果
 
-部署时一定要保证这三个目录有写权限，并且在升级时不要误删。
+说明：
+
+- API Key、聊天记录、聊天参数默认保存在用户浏览器本地（不落盘到服务器）
+- 服务端若检测到 `data/` 不可写，会自动回退到系统临时目录（如 `/tmp/chat-image`）
 
 ---
 
@@ -129,9 +130,10 @@ docker run -d \
   -e NODE_ENV=production \
   -e PORT=3018 \
   -e HOST=0.0.0.0 \
+  -e DATA_DIR=/app/data \
+  -e UPLOAD_DIR=/app/data/uploads \
+  -e OUTPUT_DIR=/app/data/outputs \
   -v $(pwd)/data:/app/data \
-  -v $(pwd)/public/uploads:/app/public/uploads \
-  -v $(pwd)/public/outputs:/app/public/outputs \
   --restart unless-stopped \
   chat-image:latest
 ```
@@ -242,13 +244,9 @@ sudo systemctl status chat-image
 
 ## 9. 首次上线后的初始化
 
-应用启动后，打开：
+应用启动后，打开 `http://你的地址:3018/settings`，在浏览器中保存：
 
-- `http://你的地址:3018/settings`
-
-然后配置：
-
-- API Key
+- API Key（仅保存在当前浏览器）
 - 默认生图模型
 - 备用生图模型列表
 - 重试次数
@@ -307,13 +305,25 @@ npm run start
 
 ### 11.3 上传或输出目录无法写入
 
-确认以下目录权限：
+日志若出现 `EACCES`（如 `mkdir '/app/data/uploads'`），通常是宿主机挂载目录权限不匹配。
+
+推荐修复：
 
 ```bash
-chmod -R 755 data public/uploads public/outputs
+docker compose down
+mkdir -p ./data/uploads ./data/outputs
+sudo chown -R 1001:1001 ./data
+sudo chmod -R u+rwX,g+rwX ./data
+docker compose up -d --build
 ```
 
-Docker 模式下请确认宿主机挂载目录本身可写。
+如果你不方便改宿主机权限，可通过环境变量切到其它可写路径：
+
+```bash
+DATA_DIR=/tmp/chat-image/data
+UPLOAD_DIR=/tmp/chat-image/uploads
+OUTPUT_DIR=/tmp/chat-image/outputs
+```
 
 ### 11.4 健康检查失败
 

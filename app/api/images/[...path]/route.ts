@@ -1,7 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
-import { resolveProjectRoot } from "@/lib/project-root";
+import { resolveOutputPathFromApiPath } from "@/lib/output-storage";
 
 const mimeMap: Record<string, string> = {
   ".png": "image/png",
@@ -11,8 +11,10 @@ const mimeMap: Record<string, string> = {
 };
 
 export async function GET(_: Request, { params }: { params: { path: string[] } }) {
-  const rel = params.path.map(decodeURIComponent).join(path.sep);
-  const full = path.join(resolveProjectRoot(), "public", "outputs", rel);
+  const full = resolveOutputPathFromApiPath(params.path || []);
+  if (!full) {
+    return NextResponse.json({ error: "文件不存在" }, { status: 404 });
+  }
   try {
     const data = await fs.readFile(full);
     const ext = path.extname(full).toLowerCase();

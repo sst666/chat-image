@@ -1,22 +1,71 @@
 import { promises as fs } from "fs";
+import os from "os";
 import path from "path";
-import { defaultEntries, defaultSettings } from "./defaults";
+import { defaultSettings } from "./defaults";
+import { toOutputApiPath } from "./output-storage";
 import { resolveProjectRoot } from "./project-root";
-import { AppLog, AppSettings, GeneratedImage, GenerationJob, PromptEntry } from "./types";
+import { AppLog, AppSettings, GeneratedImage, GenerationJob } from "./types";
 
 const root = resolveProjectRoot();
-const dataDir = path.join(root, "data");
+let cachedDataDir = "";
 
-const files = {
-  entries: path.join(dataDir, "entries.json"),
-  settings: path.join(dataDir, "settings.json"),
-  jobs: path.join(dataDir, "jobs.json"),
-  logs: path.join(dataDir, "logs.json"),
-};
+function uniquePaths(input: string[]) {
+  const list: string[] = [];
+  for (const item of input) {
+    const normalized = path.resolve(item);
+    if (list.includes(normalized)) continue;
+    list.push(normalized);
+  }
+  return list;
+}
+
+function getDataDirCandidates() {
+  const customDir = process.env.DATA_DIR || process.env.TB_DATA_DIR;
+  return uniquePaths([
+    customDir ? path.resolve(customDir) : "",
+    path.join(root, "data"),
+    path.join(os.tmpdir(), "chat-image", "data"),
+  ].filter(Boolean));
+}
+
+async function canWriteDir(dir: string) {
+  try {
+    await fs.mkdir(dir, { recursive: true });
+    const probe = path.join(dir, `.probe-${Date.now()}-${Math.random().toString(16).slice(2)}.tmp`);
+    await fs.writeFile(probe, "ok");
+    await fs.unlink(probe);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function resolveDataDir() {
+  if (cachedDataDir) {
+    if (await canWriteDir(cachedDataDir)) return cachedDataDir;
+    cachedDataDir = "";
+  }
+  for (const dir of getDataDirCandidates()) {
+    if (await canWriteDir(dir)) {
+      cachedDataDir = dir;
+      return dir;
+    }
+  }
+  throw new Error("数据目录不可写，请检查 data 挂载目录或设置 DATA_DIR");
+}
+
+async function resolveFiles() {
+  const dataDir = await resolveDataDir();
+  return {
+    settings: path.join(dataDir, "settings.json"),
+    jobs: path.join(dataDir, "jobs.json"),
+    logs: path.join(dataDir, "logs.json"),
+  };
+}
 
 async function ensureDataDir() {
+  const dataDir = await resolveDataDir();
   await fs.mkdir(dataDir, { recursive: true });
-  await fs.mkdir(path.join(root, "public", "outputs"), { recursive: true });
 }
 
 async function ensureDataDirSafe() {
@@ -74,17 +123,9 @@ function normalizeSettings(settings: Partial<AppSettings> | null | undefined): A
   };
 }
 
-export async function getEntries() {
-  return readJson<PromptEntry[]>(files.entries, defaultEntries);
-}
-
-export async function saveEntries(entries: PromptEntry[]) {
-  await writeJson(files.entries, entries);
-  return entries;
-}
-
 export async function getSettings() {
   try {
+    const files = await resolveFiles();
     const settings = await readJson<Partial<AppSettings>>(files.settings, defaultSettings);
     return normalizeSettings(settings);
   } catch (error) {
@@ -94,16 +135,19 @@ export async function getSettings() {
 }
 
 export async function saveSettings(settings: AppSettings) {
+  const files = await resolveFiles();
   const normalized = normalizeSettings(settings);
   await writeJson(files.settings, normalized);
   return normalized;
 }
 
 export async function getJobs() {
+  const files = await resolveFiles();
   return readJson<GenerationJob[]>(files.jobs, []);
 }
 
 export async function saveJobs(jobs: GenerationJob[]) {
+  const files = await resolveFiles();
   await writeJson(files.jobs, jobs);
   return jobs;
 }
@@ -180,12 +224,12 @@ export async function getJob(id: string) {
 }
 
 export function toImageUrl(outputPath: string) {
-  const relative = outputPath.split(`${path.sep}public${path.sep}outputs${path.sep}`)[1] ?? path.basename(outputPath);
-  return `/api/images/${relative.split(path.sep).map(encodeURIComponent).join("/")}`;
+  return `/api/images/${toOutputApiPath(outputPath)}`;
 }
 
 export async function getLogs() {
   try {
+    const files = await resolveFiles();
     return await readJson<AppLog[]>(files.logs, []);
   } catch (error) {
     console.error("[storage] getLogs failed:", error);
@@ -194,6 +238,7 @@ export async function getLogs() {
 }
 
 export async function appendLog(log: Omit<AppLog, "id" | "createdAt">) {
+  const files = await resolveFiles();
   const logs = await getLogs();
   const entry: AppLog = {
     id: Math.random().toString(36).slice(2),
